@@ -4,9 +4,9 @@ const { protect } = require('../middleware/auth');
 const { checkPremiumSubscription } = require('../middleware/subscription');
 
 // @route   POST /api/calls/initiate
-// @desc    Initiate a voice or video call (WebRTC session initiation)
-// @access  Private & Premium Gated
-router.post('/initiate', protect, checkPremiumSubscription, async (req, res) => {
+// @desc    Initiate a voice or video call (Voice: 100% Free, Video: Premium Gated)
+// @access  Private
+router.post('/initiate', protect, async (req, res) => {
   try {
     const { targetUserId, callType } = req.body; // callType: 'voice' | 'video'
 
@@ -14,7 +14,16 @@ router.post('/initiate', protect, checkPremiumSubscription, async (req, res) => 
       return res.status(400).json({ error: 'targetUserId and callType (voice/video) are required' });
     }
 
-    // Since caller is premium, we generate a mock WebRTC signaling room token/session
+    // Video calls are Premium Gated
+    if (callType === 'video' && !req.user.isPremium) {
+      return res.status(403).json({
+        success: false,
+        code: 'PREMIUM_REQUIRED',
+        message: 'Upgrade to premium using Telebirr or Chapa to start Video Calls. Voice calls are 100% free!',
+        paymentGateways: ['Telebirr', 'Chapa'],
+      });
+    }
+
     const sessionId = `call_${req.user._id}_${targetUserId}_${Date.now()}`;
 
     res.status(200).json({

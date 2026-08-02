@@ -130,23 +130,21 @@ export default function ChatScreen({
     }
   };
 
-  // Triggers call check (checks if caller is premium)
+  // Triggers call check (voice: free for all, video: premium gated)
   const handleInitiateCall = async (type) => {
     if (!apiBaseUrl) {
-      // Offline/Local Simulation check
-      // Checks props-injected premium status
-      if (currentUserIsPremium) {
-        setActiveCallData({
-          sessionId: `mock_call_${Date.now()}`,
-          callType: type,
-          targetUser: matchedUser,
-        });
-      } else {
+      if (type === 'video' && !currentUserIsPremium) {
         onShowPaymentPaywall({
           providerOptions: ['Telebirr', 'Chapa'],
-          message: 'Premium subscription required. Upgrade to Premium using Telebirr or Chapa to access voice and video calls.',
+          message: 'Upgrade to Premium using Telebirr or Chapa to access Video Calls. Voice calls are 100% free!',
         });
+        return;
       }
+      setActiveCallData({
+        sessionId: `mock_call_${Date.now()}`,
+        callType: type,
+        targetUser: matchedUser,
+      });
       return;
     }
 
@@ -166,14 +164,12 @@ export default function ChatScreen({
       const data = await response.json();
 
       if (response.status === 200 && data.success) {
-        // Success: User is Premium. Proceed to Call Modal
         setActiveCallData({
           sessionId: data.sessionId,
           callType: type,
           targetUser: matchedUser,
         });
       } else if (response.status === 403 && data.code === 'PREMIUM_REQUIRED') {
-        // Premium Gated: Show Telebirr/Chapa Paywall screen
         onShowPaymentPaywall({
           providerOptions: data.paymentGateways,
           message: data.message,

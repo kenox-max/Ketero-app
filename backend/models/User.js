@@ -21,10 +21,22 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  gender: {
+    type: String,
+    enum: ['male', 'female'],
+    required: true,
+  },
   age: {
     type: Number,
     required: true,
     min: 18,
+    max: 100,
+  },
+  otpCode: {
+    type: String,
+  },
+  otpExpires: {
+    type: Date,
   },
   location: {
     type: String,

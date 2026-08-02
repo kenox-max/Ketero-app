@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 
 const ETHIOPIAN_CITIES = ['Addis Ababa', 'Hawassa', 'Adama', 'Bahir Dar', 'Mekelle', 'Gondar', 'Dire Dawa', 'Jimma'];
 const RELIGIONS = ['Orthodox', 'Protestant', 'Muslim', 'Catholic', 'Other'];
@@ -23,13 +24,16 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
     phone: '',
     password: '',
     age: '',
+    gender: 'female', // Default selection chip
     location: 'Addis Ababa',
     religion: 'Orthodox',
     languages: [],
     hobbies: '',
   });
   const [otpCode, setOtpCode] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState('SMS'); // 'SMS' | 'WHATSAPP' | 'EMAIL'
   const [simulatedAlert, setSimulatedAlert] = useState(null); // { header, body, brandColor }
 
@@ -46,20 +50,15 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
 
   const handleNextStep = () => {
     if (step === 1) {
-      if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.age) {
-        if (Platform.OS === 'web') {
-          alert('Please fill out all credentials including your Email.');
-        } else {
-          Alert.alert('Missing Info', 'Please fill out all credentials including your Email.');
-        }
+      if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.age || !formData.gender) {
+        const msg = 'Please fill out all credentials including Age and Gender.';
+        if (Platform.OS === 'web') alert(msg); else Alert.alert('Missing Info', msg);
         return;
       }
-      if (parseInt(formData.age) < 18) {
-        if (Platform.OS === 'web') {
-          alert('You must be 18 or older to use Ketero.');
-        } else {
-          Alert.alert('Age Restriction', 'You must be 18 or older to use Ketero.');
-        }
+      const ageNum = parseInt(formData.age);
+      if (isNaN(ageNum) || ageNum < 18 || ageNum > 100) {
+        const msg = 'You must be between 18 and 100 years old to use Ketero.';
+        if (Platform.OS === 'web') alert(msg); else Alert.alert('Age Restriction', msg);
         return;
       }
       setStep(2);
@@ -68,90 +67,96 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
 
   const handleGoToVerification = () => {
     if (!formData.location || !formData.religion) {
-      if (Platform.OS === 'web') {
-        alert('Please complete your matching preferences.');
-      } else {
-        Alert.alert('Missing Preferences', 'Please complete your matching preferences.');
-      }
+      const msg = 'Please complete your matching preferences.';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Missing Preferences', msg);
       return;
     }
     setStep(3);
   };
 
-  const handleSendVerificationCode = () => {
-    // Generate a random 4-digit code
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(code);
-    
-    let header = '💬 Ketero SMS Gateway';
-    let body = `ቀጠሮ Verification Code: ${code}. Enter this code on your screen to verify your phone number.`;
-    let brandColor = '#E4A853';
+  const handleSendVerificationCode = async () => {
+    setSendingOtp(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: formData.phone,
+          email: formData.email,
+          method: verificationMethod,
+        }),
+      });
 
-    if (verificationMethod === 'WHATSAPP') {
-      header = '🟢 WhatsApp Business';
-      body = `[Ketero ቀጠሮ] Selam! Your verification code is: ${code}. Valid for 5 minutes.`;
-      brandColor = '#25D366';
-    } else if (verificationMethod === 'EMAIL') {
-      header = '✉️ Ketero Mailer';
-      body = `Hello! Please verify your Ketero account with code: ${code}. If you did not request this, ignore.`;
-      brandColor = '#1A73E8';
-    }
+      const data = await response.json();
+      if (response.ok) {
+        setIsOtpSent(true);
+        const header = verificationMethod === 'WHATSAPP' ? '🟢 WhatsApp Gateway' : verificationMethod === 'EMAIL' ? '✉️ Email Transporter' : '💬 SMS Gateway';
+        const body = data.message || `Verification code sent to your ${verificationMethod}. Check your messages/inbox.`;
+        const brandColor = verificationMethod === 'WHATSAPP' ? '#25D366' : verificationMethod === 'EMAIL' ? '#1A73E8' : '#E4A853';
 
-    setSimulatedAlert({ header, body, brandColor });
-
-    // Fallback alerts for redundancy
-    if (Platform.OS === 'web') {
-      setTimeout(() => {
-        alert(`[${header}]\n\n${body}`);
-      }, 200);
-    } else {
-      setTimeout(() => {
-        Alert.alert(header, body, [{ text: 'OK' }]);
-      }, 200);
+        setSimulatedAlert({ header, body, brandColor });
+        if (Platform.OS === 'web') {
+          alert(`[${header}]\n\n${body}`);
+        } else {
+          Alert.alert(header, body);
+        }
+      } else {
+        const err = data.error || 'Failed to send code.';
+        if (Platform.OS === 'web') alert(err); else Alert.alert('OTP Error', err);
+      }
+    } catch (err) {
+      console.error('Send OTP Error:', err);
+      const msg = 'Network error sending verification code.';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Network Error', msg);
+    } finally {
+      setSendingOtp(false);
     }
   };
 
   const handleVerifyAndSubmit = async () => {
-    if (!generatedOtp) {
-      if (Platform.OS === 'web') {
-        alert('Please request a verification code first.');
-      } else {
-        Alert.alert('Verification Required', 'Please request a verification code first.');
-      }
+    if (!isOtpSent) {
+      const msg = 'Please request a verification code first.';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Verification Required', msg);
       return;
     }
-    if (!otpCode) {
-      if (Platform.OS === 'web') {
-        alert('Please enter the 4-digit code.');
-      } else {
-        Alert.alert('Verification Required', 'Please enter the 4-digit code.');
-      }
-      return;
-    }
-    if (otpCode !== generatedOtp) {
-      if (Platform.OS === 'web') {
-        alert('The verification code you entered is incorrect.');
-      } else {
-        Alert.alert('Invalid Code', 'The verification code you entered is incorrect.');
-      }
+    if (!otpCode || otpCode.length < 4) {
+      const msg = 'Please enter the 6-digit verification code sent to you.';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Invalid Code', msg);
       return;
     }
 
+    setVerifyingOtp(true);
     try {
-      const payload = {
-        ...formData,
-        age: parseInt(formData.age),
-        hobbies: formData.hobbies ? formData.hobbies.split(',').map((h) => h.trim()) : [],
-        verifiedStatus: true,
-      };
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: formData.phone,
+          email: formData.email,
+          otpCode: otpCode.trim(),
+        }),
+      });
 
-      onRegisterSuccess(payload);
-    } catch (error) {
-      if (Platform.OS === 'web') {
-        alert('Failed to register. Please try again.');
+      const data = await response.json();
+      if (response.ok) {
+        const payload = {
+          ...formData,
+          age: parseInt(formData.age),
+          gender: formData.gender.toLowerCase(),
+          hobbies: formData.hobbies ? formData.hobbies.split(',').map((h) => h.trim()) : [],
+          verifiedStatus: true,
+        };
+        onRegisterSuccess(payload);
       } else {
-        Alert.alert('Error', 'Failed to register. Please try again.');
+        const err = data.error || 'Invalid or expired verification code.';
+        if (Platform.OS === 'web') alert(err); else Alert.alert('Verification Failed', err);
       }
+    } catch (err) {
+      console.error('Verify OTP Error:', err);
+      const msg = 'Network error verifying code.';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert('Network Error', msg);
+    } finally {
+      setVerifyingOtp(false);
     }
   };
 
@@ -208,12 +213,34 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               onChangeText={(val) => setFormData({ ...formData, password: val })}
             />
 
-            <Text style={styles.label}>Age</Text>
+            <Text style={styles.label}>Gender / Sex (Mandatory)</Text>
+            <View style={styles.pickerContainer}>
+              <TouchableOpacity
+                style={[styles.pickerItem, formData.gender === 'female' && styles.pickerItemActive]}
+                onPress={() => setFormData({ ...formData, gender: 'female' })}
+              >
+                <Text style={[styles.pickerItemText, formData.gender === 'female' && styles.pickerItemTextActive]}>
+                  👩 Female
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.pickerItem, formData.gender === 'male' && styles.pickerItemActive]}
+                onPress={() => setFormData({ ...formData, gender: 'male' })}
+              >
+                <Text style={[styles.pickerItemText, formData.gender === 'male' && styles.pickerItemTextActive]}>
+                  👨 Male
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Age (Must be 18+)</Text>
             <TextInput
               style={styles.input}
-              placeholder="Must be 18+"
+              placeholder="e.g. 24"
               placeholderTextColor="#666"
               keyboardType="numeric"
+              maxLength={3}
               value={formData.age}
               onChangeText={(val) => setFormData({ ...formData, age: val })}
             />
@@ -360,9 +387,13 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={[styles.button, { marginBottom: 20 }]} onPress={handleSendVerificationCode}>
+            <TouchableOpacity 
+              style={[styles.button, { marginBottom: 20 }, sendingOtp && { opacity: 0.6 }]} 
+              onPress={handleSendVerificationCode}
+              disabled={sendingOtp}
+            >
               <Text style={styles.buttonText}>
-                Send Code via {verificationMethod === 'SMS' ? 'SMS' : verificationMethod === 'WHATSAPP' ? 'WhatsApp' : 'Email'}
+                {sendingOtp ? 'Sending Code...' : `Send Code via ${verificationMethod === 'SMS' ? 'SMS' : verificationMethod === 'WHATSAPP' ? 'WhatsApp' : 'Email'}`}
               </Text>
             </TouchableOpacity>
 
@@ -375,13 +406,13 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               </View>
             )}
 
-            <Text style={styles.label}>Enter 4-Digit Code</Text>
+            <Text style={styles.label}>Enter 6-Digit Code</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter 4-digit code"
+              placeholder="Enter 6-digit code"
               placeholderTextColor="#666"
               keyboardType="numeric"
-              maxLength={4}
+              maxLength={6}
               value={otpCode}
               onChangeText={setOtpCode}
             />

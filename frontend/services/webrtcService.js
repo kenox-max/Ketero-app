@@ -20,13 +20,31 @@ export function useWebRTC(targetUserId) {
   
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
+  const iceCandidatesBufferRef = useRef([]);
 
-  // Initialize Media Stream
+  // Process any buffered ICE candidates once remote description is set
+  const processBufferedCandidates = async (pc) => {
+    if (pc && pc.remoteDescription && iceCandidatesBufferRef.current.length > 0) {
+      console.log(`Flushing ${iceCandidatesBufferRef.current.length} buffered ICE candidates...`);
+      const candidatesToProcess = [...iceCandidatesBufferRef.current];
+      iceCandidatesBufferRef.current = [];
+      for (const candidate of candidatesToProcess) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.error('Error adding buffered ICE candidate:', err);
+        }
+      }
+    }
+  };
+
+  // Initialize Media Stream with formatted constraints
   const startLocalStream = async (videoEnabled = true, audioEnabled = true) => {
     try {
       console.log('Requesting local media stream (camera & mic)...');
+      const videoConstraints = videoEnabled ? { facingMode: 'user', frameRate: 30 } : false;
       const stream = await mediaDevices.getUserMedia({
-        video: videoEnabled,
+        video: videoConstraints,
         audio: audioEnabled,
       });
       setLocalStream(stream);
@@ -101,6 +119,7 @@ export function useWebRTC(targetUserId) {
         socket.emit('call-user', {
           targetUserId,
           sdpOffer: offer,
+          callType: type,
         });
       }
     } catch (err) {
@@ -122,6 +141,8 @@ export function useWebRTC(targetUserId) {
 
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdpOffer));
+      await processBufferedCandidates(pc);
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -141,6 +162,9 @@ export function useWebRTC(targetUserId) {
   const endCall = (emitEvent = true) => {
     console.log('Ending call and cleaning WebRTC connections...');
     
+    // Clear ICE candidates buffer
+    iceCandidatesBufferRef.current = [];
+
     // Stop local media tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
@@ -192,32 +216,42 @@ export function useWebRTC(targetUserId) {
   useEffect(() => {
     if (!socket || !targetUserId) return;
 
-    socket.on('incoming-call', ({ callerId, callerName, sdpOffer }) => {
-      console.log(`Incoming call from: ${callerName}`);
+    socket.on('incoming-call', ({ callerId, callerName, sdpOffer, callType }) => {
+      console.log(`Incoming call from: ${callerName} (${callType || 'video'})`);
       setCallStatus('incoming');
       setActiveCallData({
         sessionId: `call_${callerId}_${Date.now()}`,
         callerId,
         callerName,
         sdpOffer,
-        callType: 'video',
+        callType: callType || 'video',
       });
     });
 
-    socket.on('call-answered', ({ sdpAnswer }) => {
+    socket.on('call-answered', async ({ sdpAnswer }) => {
       console.log('Call answered. Finalizing remote description SDP Answer');
       setCallStatus('connected');
       if (pcRef.current) {
-        pcRef.current.setRemoteDescription(new RTCSessionDescription(sdpAnswer))
-          .catch((err) => console.error('Error setting remote description:', err));
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(sdpAnswer));
+          await processBufferedCandidates(pcRef.current);
+        } catch (err) {
+          console.error('Error setting remote description:', err);
+        }
       }
     });
 
     socket.on('ice-candidate', ({ candidate }) => {
-      if (pcRef.current && candidate) {
-        console.log('Adding remote ICE Candidate...');
-        pcRef.current.addIceCandidate(new RTCIceCandidate(candidate))
-          .catch((err) => console.error('Error adding remote ICE candidate:', err));
+      if (candidate) {
+        const pc = pcRef.current;
+        if (pc && pc.remoteDescription) {
+          console.log('Adding remote ICE Candidate...');
+          pc.addIceCandidate(new RTCIceCandidate(candidate))
+            .catch((err) => console.error('Error adding remote ICE candidate:', err));
+        } else {
+          console.log('Buffering ICE candidate until remote description is set...');
+          iceCandidatesBufferRef.current.push(candidate);
+        }
       }
     });
 

@@ -166,28 +166,29 @@ io.on('connection', (socket) => {
     }
   });
 
-  // WebRTC Call Signaling (Only for user.isPremium)
+  // WebRTC Call Signaling (Audio calls: 100% Free, Video calls: Premium Gated)
   socket.on('call_signal', async (data) => {
     try {
-      const { targetUserId, signal } = data;
+      const { targetUserId, signal, callType } = data;
       const currentUserId = socket.user._id.toString();
 
-      // Check premium again just in case (defense-in-depth)
-      const user = await User.findById(currentUserId);
-      if (!user.isPremium) {
-        socket.emit('call_error', { 
-          error: 'Premium Required', 
-          message: 'Upgrade to premium using Telebirr/Chapa to start calls.' 
-        });
-        return;
+      if (callType === 'video') {
+        const user = await User.findById(currentUserId);
+        if (!user.isPremium) {
+          socket.emit('call_error', { 
+            error: 'Premium Required', 
+            message: 'Upgrade to premium using Telebirr/Chapa to start video calls. Voice calls are 100% free!' 
+          });
+          return;
+        }
       }
 
       // Emit the WebRTC offer/answer/ice-candidate signal to the target user's personal socket room
-      // Join target user to their own personal room upon connecting so we can send direct notifications
       io.to(`user_${targetUserId}`).emit('incoming_call_signal', {
         callerId: currentUserId,
         callerName: socket.user.name,
-        signal
+        signal,
+        callType
       });
     } catch (error) {
       console.error('Signaling Error:', error);
@@ -197,14 +198,26 @@ io.on('connection', (socket) => {
   // WebRTC Call Signaling (Standard events requested by client)
   socket.on('call-user', async (data) => {
     try {
-      const { targetUserId, sdpOffer } = data;
+      const { targetUserId, sdpOffer, callType } = data;
       const currentUserId = socket.user._id.toString();
-      console.log(`WebRTC call-user: ${socket.user.name} (${currentUserId}) -> ${targetUserId}`);
+      console.log(`WebRTC call-user (${callType || 'audio'}): ${socket.user.name} (${currentUserId}) -> ${targetUserId}`);
+
+      if (callType === 'video') {
+        const user = await User.findById(currentUserId);
+        if (!user.isPremium) {
+          socket.emit('call_error', { 
+            error: 'Premium Required', 
+            message: 'Upgrade to premium to start Video Calls.' 
+          });
+          return;
+        }
+      }
 
       io.to(`user_${targetUserId}`).emit('incoming-call', {
         callerId: currentUserId,
         callerName: socket.user.name,
-        sdpOffer
+        sdpOffer,
+        callType: callType || 'audio'
       });
     } catch (error) {
       console.error('WebRTC call-user error:', error);
