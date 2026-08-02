@@ -34,7 +34,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [verificationMethod, setVerificationMethod] = useState('SMS'); // 'SMS' | 'WHATSAPP' | 'EMAIL'
+  const [verificationMethod, setVerificationMethod] = useState('EMAIL'); // 'EMAIL' (default) | 'SMS' | 'WHATSAPP'
   const [simulatedAlert, setSimulatedAlert] = useState(null); // { header, body, brandColor }
 
   const toggleLanguage = (lang) => {
@@ -360,13 +360,23 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
             <Text style={styles.label}>Choose Verification Method</Text>
             <View style={styles.methodSelector}>
               <TouchableOpacity
+                style={[styles.methodBtn, verificationMethod === 'EMAIL' && styles.methodBtnActive]}
+                onPress={() => {
+                  setVerificationMethod('EMAIL');
+                  setSimulatedAlert(null);
+                }}
+              >
+                <Text style={[styles.methodText, verificationMethod === 'EMAIL' && styles.methodTextActive]}>✉️ Email</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={[styles.methodBtn, verificationMethod === 'SMS' && styles.methodBtnActive]}
                 onPress={() => {
                   setVerificationMethod('SMS');
                   setSimulatedAlert(null);
                 }}
               >
-                <Text style={[styles.methodText, verificationMethod === 'SMS' && styles.methodTextActive]}>SMS</Text>
+                <Text style={[styles.methodText, verificationMethod === 'SMS' && styles.methodTextActive]}>💬 SMS</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -376,17 +386,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
                   setSimulatedAlert(null);
                 }}
               >
-                <Text style={[styles.methodText, verificationMethod === 'WHATSAPP' && styles.methodTextActive]}>WhatsApp</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.methodBtn, verificationMethod === 'EMAIL' && styles.methodBtnActive]}
-                onPress={() => {
-                  setVerificationMethod('EMAIL');
-                  setSimulatedAlert(null);
-                }}
-              >
-                <Text style={[styles.methodText, verificationMethod === 'EMAIL' && styles.methodTextActive]}>Email</Text>
+                <Text style={[styles.methodText, verificationMethod === 'WHATSAPP' && styles.methodTextActive]}>🟢 WhatsApp</Text>
               </TouchableOpacity>
             </View>
 
