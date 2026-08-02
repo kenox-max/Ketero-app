@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
+const sendOTPCode = require('../utils/sendEmail');
 
 // Helper to generate JWT
 const generateToken = (id) => {
@@ -190,7 +191,7 @@ router.put('/profile', protect, async (req, res) => {
 const tempOtpStore = new Map();
 
 // @route   POST /api/auth/send-otp
-// @desc    Send 6-digit OTP code via external channel (Email/SMS)
+// @desc    Send 6-digit OTP code via Gmail SMTP Nodemailer
 router.post('/send-otp', async (req, res) => {
   try {
     const { phone, email, method } = req.body;
@@ -214,42 +215,23 @@ router.post('/send-otp', async (req, res) => {
       }
     }
 
-    console.log(`[EXTERNAL OTP TRANSMITTER] Delivered 6-digit OTP code [${otpCode}] to ${targetKey} via ${method || 'SMS'}`);
+    const recipientEmail = email || (phone ? `${phone}@ketero.app` : null);
 
-    let emailSent = false;
-    if (email && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    if (recipientEmail && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       try {
-        const nodemailer = require('nodemailer');
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        });
-        await transporter.sendMail({
-          from: `"Ketero ቀጠሮ" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: 'Your Ketero Verification Code',
-          text: `Your Ketero verification code is: ${otpCode}. Valid for 10 minutes.`,
-          html: `<div style="font-family: sans-serif; padding: 20px; background: #121212; color: #FFF; border-radius: 10px;">
-            <h2 style="color: #E4A853;">Ketero ቀጠሮ Verification</h2>
-            <p>Selam! Your 6-digit security code is:</p>
-            <h1 style="color: #E4A853; font-size: 36px; letter-spacing: 5px;">${otpCode}</h1>
-            <p>This code expires in 10 minutes.</p>
-          </div>`
-        });
-        emailSent = true;
+        await sendOTPCode(recipientEmail, otpCode);
+        console.log(`[NODEMAILER] Successfully delivered OTP code to ${recipientEmail}`);
       } catch (mailErr) {
-        console.error('Nodemailer Error:', mailErr);
+        console.error('[NODEMAILER ERROR] Failed to deliver email:', mailErr);
       }
+    } else {
+      console.log(`[EXTERNAL OTP TRANSMITTER (SIMULATION)] 6-digit OTP code [${otpCode}] generated for ${targetKey}`);
     }
 
-    // Return clean response with debugOtp in demo/simulation mode if SMTP is not configured
+    // Clean JSON response - DO NOT return OTP code in API payload
     res.json({
       success: true,
-      message: `Verification code sent to your ${method ? method.toLowerCase() : 'device'}.`,
-      debugOtp: (!emailSent) ? otpCode : undefined,
+      message: 'Verification code sent to your email address.',
     });
   } catch (error) {
     console.error('Send OTP Error:', error);
