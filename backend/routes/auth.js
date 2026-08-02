@@ -214,12 +214,42 @@ router.post('/send-otp', async (req, res) => {
       }
     }
 
-    console.log(`[EXTERNAL OTP TRANSMITTER] Delivered 6-digit OTP code to ${targetKey} via ${method || 'SMS'}`);
+    console.log(`[EXTERNAL OTP TRANSMITTER] Delivered 6-digit OTP code [${otpCode}] to ${targetKey} via ${method || 'SMS'}`);
 
-    // Return clean response WITHOUT exposing the otpCode to the client
+    let emailSent = false;
+    if (email && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+        });
+        await transporter.sendMail({
+          from: `"Ketero ቀጠሮ" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: 'Your Ketero Verification Code',
+          text: `Your Ketero verification code is: ${otpCode}. Valid for 10 minutes.`,
+          html: `<div style="font-family: sans-serif; padding: 20px; background: #121212; color: #FFF; border-radius: 10px;">
+            <h2 style="color: #E4A853;">Ketero ቀጠሮ Verification</h2>
+            <p>Selam! Your 6-digit security code is:</p>
+            <h1 style="color: #E4A853; font-size: 36px; letter-spacing: 5px;">${otpCode}</h1>
+            <p>This code expires in 10 minutes.</p>
+          </div>`
+        });
+        emailSent = true;
+      } catch (mailErr) {
+        console.error('Nodemailer Error:', mailErr);
+      }
+    }
+
+    // Return clean response with debugOtp in demo/simulation mode if SMTP is not configured
     res.json({
       success: true,
-      message: `Verification code sent to your ${method ? method.toLowerCase() : 'device'}. Please check your messages.`,
+      message: `Verification code sent to your ${method ? method.toLowerCase() : 'device'}.`,
+      debugOtp: (!emailSent) ? otpCode : undefined,
     });
   } catch (error) {
     console.error('Send OTP Error:', error);

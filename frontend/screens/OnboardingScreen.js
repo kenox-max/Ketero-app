@@ -91,7 +91,10 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
       if (response.ok) {
         setIsOtpSent(true);
         const header = verificationMethod === 'WHATSAPP' ? '🟢 WhatsApp Gateway' : verificationMethod === 'EMAIL' ? '✉️ Email Transporter' : '💬 SMS Gateway';
-        const body = data.message || `Verification code sent to your ${verificationMethod}. Check your messages/inbox.`;
+        let body = data.message || `Verification code sent to your ${verificationMethod}. Check your messages/inbox.`;
+        if (data.debugOtp) {
+          body += `\n\n🔑 Verification Code: ${data.debugOtp}\n(Enter this code on your screen to verify).`;
+        }
         const brandColor = verificationMethod === 'WHATSAPP' ? '#25D366' : verificationMethod === 'EMAIL' ? '#1A73E8' : '#E4A853';
 
         setSimulatedAlert({ header, body, brandColor });
