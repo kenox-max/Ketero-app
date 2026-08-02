@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Ketero",
+    "slug": "ketero",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.ketero.app"
+    }
+  }
+}
