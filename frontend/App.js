@@ -158,9 +158,10 @@ export default function App() {
         body: JSON.stringify(profileData),
       });
       const data = await response.json();
-      if (response.ok) {
+      if (response.ok && data.token) {
         setToken(data.token);
-        setUser(data);
+        const userObj = data.user || data;
+        setUser(userObj);
         setCurrentScreen('DASHBOARD'); // Land on dashboard after register
       } else {
         alert(data.error || 'Failed to Register');

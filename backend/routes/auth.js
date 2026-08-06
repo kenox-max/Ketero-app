@@ -64,8 +64,7 @@ router.post('/register', async (req, res) => {
     });
 
     if (user) {
-      res.status(201).json({
-        success: true,
+      const fullUserObj = {
         _id: user._id,
         name: user.name,
         email: user.email,
@@ -74,24 +73,22 @@ router.post('/register', async (req, res) => {
         gender: user.gender,
         location: user.location,
         religion: user.religion,
-        languages: user.languages,
-        hobbies: user.hobbies,
+        languages: user.languages || [],
+        hobbies: user.hobbies || [],
         profilePhoto: user.profilePhoto,
         verifiedStatus: true,
         isVerified: true,
-        isPremium: user.isPremium,
+        isPremium: user.isPremium || false,
         role: user.role || 'user',
+        likes: user.likes || [],
+        matches: user.matches || [],
+      };
+
+      res.status(201).json({
+        success: true,
         token: generateToken(user._id),
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          verifiedStatus: true,
-          isVerified: true,
-          isPremium: user.isPremium,
-          role: user.role || 'user',
-        },
+        ...fullUserObj,
+        user: fullUserObj,
       });
     } else {
       res.status(400).json({ error: 'Invalid user data' });
