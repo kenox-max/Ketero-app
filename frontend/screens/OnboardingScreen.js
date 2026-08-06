@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { API_BASE_URL } from '../config/api';
 
 const ETHIOPIAN_CITIES = ['Addis Ababa', 'Hawassa', 'Adama', 'Bahir Dar', 'Mekelle', 'Gondar', 'Dire Dawa', 'Jimma'];
 const RELIGIONS = ['Orthodox', 'Protestant', 'Muslim', 'Catholic', 'Other'];
@@ -30,12 +29,6 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
     languages: [],
     hobbies: '',
   });
-  const [otpCode, setOtpCode] = useState('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [verificationMethod, setVerificationMethod] = useState('EMAIL'); // 'EMAIL' (default) | 'SMS' | 'WHATSAPP'
-  const [simulatedAlert, setSimulatedAlert] = useState(null); // { header, body, brandColor }
 
   const toggleLanguage = (lang) => {
     setFormData((prev) => {
@@ -51,7 +44,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
   const handleNextStep = () => {
     if (step === 1) {
       if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.age || !formData.gender) {
-        const msg = 'Please fill out all credentials including Age and Gender.';
+        const msg = 'Please fill out all required credentials including Age and Gender.';
         if (Platform.OS === 'web') alert(msg); else Alert.alert('Missing Info', msg);
         return;
       }
@@ -65,7 +58,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
     }
   };
 
-  const handleGoToVerification = () => {
+  const handleCompleteRegistration = () => {
     if (!formData.location || !formData.religion) {
       const msg = 'Please complete your matching preferences.';
       if (Platform.OS === 'web') alert(msg); else Alert.alert('Missing Preferences', msg);
@@ -83,98 +76,6 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
     onRegisterSuccess(payload);
   };
 
-  const handleSendVerificationCode = async () => {
-    setSendingOtp(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: formData.phone,
-          email: formData.email,
-          method: verificationMethod,
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setIsOtpSent(true);
-        if (data.devOtp) {
-          setOtpCode(data.devOtp);
-        }
-        const header = verificationMethod === 'WHATSAPP' ? '🟢 WhatsApp Gateway' : verificationMethod === 'EMAIL' ? '✉️ Email Transporter' : '💬 SMS Gateway';
-        const body = data.message || `Verification code sent to your ${verificationMethod.toLowerCase()}. Please check your inbox.`;
-        const brandColor = verificationMethod === 'WHATSAPP' ? '#25D366' : verificationMethod === 'EMAIL' ? '#1A73E8' : '#E4A853';
-
-        setSimulatedAlert({ header, body, brandColor });
-        if (Platform.OS === 'web') {
-          alert(`[${header}]\n\n${body}`);
-        } else {
-          Alert.alert(header, body);
-        }
-      } else {
-        if (data.devOtp) {
-          setOtpCode(data.devOtp);
-        }
-        const err = data.error || 'Failed to send code.';
-        if (Platform.OS === 'web') alert(err); else Alert.alert('OTP Error', err);
-      }
-    } catch (err) {
-      console.error('Send OTP Error:', err);
-      const msg = 'Network error sending verification code.';
-      if (Platform.OS === 'web') alert(msg); else Alert.alert('Network Error', msg);
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleVerifyAndSubmit = async () => {
-    if (!isOtpSent) {
-      const msg = 'Please request a verification code first.';
-      if (Platform.OS === 'web') alert(msg); else Alert.alert('Verification Required', msg);
-      return;
-    }
-    if (!otpCode || otpCode.length < 4) {
-      const msg = 'Please enter the 6-digit verification code sent to you.';
-      if (Platform.OS === 'web') alert(msg); else Alert.alert('Invalid Code', msg);
-      return;
-    }
-
-    setVerifyingOtp(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: formData.phone,
-          email: formData.email,
-          otpCode: otpCode.trim(),
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        const payload = {
-          ...formData,
-          age: parseInt(formData.age),
-          gender: formData.gender.toLowerCase(),
-          hobbies: formData.hobbies ? formData.hobbies.split(',').map((h) => h.trim()) : [],
-          verifiedStatus: true,
-        };
-        onRegisterSuccess(payload);
-      } else {
-        const err = data.error || 'Invalid or expired verification code.';
-        if (Platform.OS === 'web') alert(err); else Alert.alert('Verification Failed', err);
-      }
-    } catch (err) {
-      console.error('Verify OTP Error:', err);
-      const msg = 'Network error verifying code.';
-      if (Platform.OS === 'web') alert(msg); else Alert.alert('Network Error', msg);
-    } finally {
-      setVerifyingOtp(false);
-    }
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -186,7 +87,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
 
         {step === 1 ? (
           <View style={styles.card}>
-            <Text style={styles.stepTitle}>Step 1: Your Account</Text>
+            <Text style={styles.stepTitle}>Create Account (Step 1 of 2)</Text>
 
             <Text style={styles.label}>Full Name</Text>
             <TextInput
@@ -249,10 +150,10 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>Age (Must be 18+)</Text>
+            <Text style={styles.label}>Age (Mandatory)</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. 24"
+              placeholder="Must be 18+"
               placeholderTextColor="#666"
               keyboardType="numeric"
               maxLength={3}
@@ -260,27 +161,24 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               onChangeText={(val) => setFormData({ ...formData, age: val })}
             />
 
-            <TouchableOpacity style={styles.button} onPress={handleNextStep}>
-              <Text style={styles.buttonText}>Continue</Text>
+            <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleNextStep}>
+              <Text style={styles.buttonText}>Next: Matching Profile →</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.textLink} onPress={onNavigateToLogin}>
-              <Text style={styles.textLinkLabel}>Already have an account? Login</Text>
+            <TouchableOpacity style={styles.linkButton} onPress={onNavigateToLogin}>
+              <Text style={styles.linkText}>Already have an account? Sign In</Text>
             </TouchableOpacity>
           </View>
-        ) : step === 2 ? (
+        ) : (
           <View style={styles.card}>
-            <Text style={styles.stepTitle}>Step 2: Matching Preferences</Text>
+            <Text style={styles.stepTitle}>Matching Preferences (Step 2 of 2)</Text>
 
-            <Text style={styles.label}>Location / City</Text>
+            <Text style={styles.label}>City / Location</Text>
             <View style={styles.pickerContainer}>
               {ETHIOPIAN_CITIES.map((city) => (
                 <TouchableOpacity
                   key={city}
-                  style={[
-                    styles.pickerItem,
-                    formData.location === city && styles.pickerItemActive,
-                  ]}
+                  style={[styles.pickerItem, formData.location === city && styles.pickerItemActive]}
                   onPress={() => setFormData({ ...formData, location: city })}
                 >
                   <Text
@@ -295,15 +193,12 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               ))}
             </View>
 
-            <Text style={styles.label}>Religion (Culturally relevant matching)</Text>
+            <Text style={styles.label}>Religion / Cultural Belief</Text>
             <View style={styles.pickerContainer}>
               {RELIGIONS.map((rel) => (
                 <TouchableOpacity
                   key={rel}
-                  style={[
-                    styles.pickerItem,
-                    formData.religion === rel && styles.pickerItemActive,
-                  ]}
+                  style={[styles.pickerItem, formData.religion === rel && styles.pickerItemActive]}
                   onPress={() => setFormData({ ...formData, religion: rel })}
                 >
                   <Text
@@ -352,7 +247,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               onChangeText={(val) => setFormData({ ...formData, hobbies: val })}
             />
 
-             <View style={styles.rowButtons}>
+            <View style={styles.rowButtons}>
               <TouchableOpacity
                 style={[styles.button, styles.secondaryButton]}
                 onPress={() => setStep(1)}
@@ -360,88 +255,8 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
                 <Text style={styles.secondaryButtonText}>Back</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleGoToVerification}>
-                <Text style={styles.buttonText}>Complete & Start Dating 🎉</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <Text style={styles.stepTitle}>Step 3: Security Verification</Text>
-            
-            <Text style={styles.label}>Choose Verification Method</Text>
-            <View style={styles.methodSelector}>
-              <TouchableOpacity
-                style={[styles.methodBtn, verificationMethod === 'EMAIL' && styles.methodBtnActive]}
-                onPress={() => {
-                  setVerificationMethod('EMAIL');
-                  setSimulatedAlert(null);
-                }}
-              >
-                <Text style={[styles.methodText, verificationMethod === 'EMAIL' && styles.methodTextActive]}>✉️ Email</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.methodBtn, verificationMethod === 'SMS' && styles.methodBtnActive]}
-                onPress={() => {
-                  setVerificationMethod('SMS');
-                  setSimulatedAlert(null);
-                }}
-              >
-                <Text style={[styles.methodText, verificationMethod === 'SMS' && styles.methodTextActive]}>💬 SMS</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.methodBtn, verificationMethod === 'WHATSAPP' && styles.methodBtnActive]}
-                onPress={() => {
-                  setVerificationMethod('WHATSAPP');
-                  setSimulatedAlert(null);
-                }}
-              >
-                <Text style={[styles.methodText, verificationMethod === 'WHATSAPP' && styles.methodTextActive]}>🟢 WhatsApp</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.button, { marginBottom: 20 }, sendingOtp && { opacity: 0.6 }]} 
-              onPress={handleSendVerificationCode}
-              disabled={sendingOtp}
-            >
-              <Text style={styles.buttonText}>
-                {sendingOtp ? 'Sending Code...' : `Send Code via ${verificationMethod === 'SMS' ? 'SMS' : verificationMethod === 'WHATSAPP' ? 'WhatsApp' : 'Email'}`}
-              </Text>
-            </TouchableOpacity>
-
-            {simulatedAlert && (
-              <View style={[styles.simulationCard, { borderColor: simulatedAlert.brandColor }]}>
-                <Text style={[styles.simulationHeader, { color: simulatedAlert.brandColor }]}>
-                  {simulatedAlert.header}
-                </Text>
-                <Text style={styles.simulationBody}>{simulatedAlert.body}</Text>
-              </View>
-            )}
-
-            <Text style={styles.label}>Enter 6-Digit Code</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter 6-digit code"
-              placeholderTextColor="#666"
-              keyboardType="numeric"
-              maxLength={6}
-              value={otpCode}
-              onChangeText={setOtpCode}
-            />
-
-            <View style={styles.rowButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.secondaryButton]}
-                onPress={() => setStep(2)}
-              >
-                <Text style={styles.secondaryButtonText}>Back</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleVerifyAndSubmit}>
-                <Text style={styles.buttonText}>Verify & Create Profile</Text>
+              <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleCompleteRegistration}>
+                <Text style={styles.buttonText}>Create Profile & Start Dating 🎉</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -454,198 +269,118 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B0D',
+    backgroundColor: '#121212',
   },
   scrollContent: {
-    padding: 24,
-    paddingTop: 60,
-    alignItems: 'center',
+    padding: 20,
+    paddingTop: 50,
   },
   appTitle: {
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFB800', // Ketero gold
-    letterSpacing: 1.5,
-    marginBottom: 4,
-    textShadowColor: 'rgba(255, 184, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+    color: '#E4A853',
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#A0A0AA',
-    marginBottom: 30,
+    color: '#888',
     textAlign: 'center',
+    marginBottom: 30,
   },
   card: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: 'rgba(22, 20, 28, 0.75)',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#FFB800',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 15,
-    elevation: 8,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 184, 0, 0.15)',
+    borderColor: '#333',
   },
   stepTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#FFF',
     marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-    paddingBottom: 10,
   },
   label: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFB800',
-    marginBottom: 8,
+    color: '#AAA',
+    marginBottom: 6,
+    marginTop: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: '#2A2A2A',
     color: '#FFF',
-    borderBottomWidth: 1.5,
-    borderColor: 'rgba(255, 184, 0, 0.15)',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 20,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#444',
   },
   textArea: {
-    height: 80,
+    height: 70,
     textAlignVertical: 'top',
   },
   pickerContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
     gap: 8,
+    marginBottom: 10,
   },
   pickerItem: {
-    backgroundColor: 'rgba(22, 20, 28, 0.6)',
-    paddingHorizontal: 14,
+    backgroundColor: '#2A2A2A',
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 184, 0, 0.12)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
   },
   pickerItemActive: {
-    backgroundColor: 'rgba(255, 184, 0, 0.12)',
-    borderColor: '#FFB800',
+    backgroundColor: 'rgba(228, 168, 83, 0.2)',
+    borderColor: '#E4A853',
   },
   pickerItemText: {
-    color: '#A0A0AA',
+    color: '#AAA',
     fontSize: 13,
   },
   pickerItemTextActive: {
-    color: '#FFB800',
+    color: '#E4A853',
     fontWeight: 'bold',
   },
   button: {
-    backgroundColor: '#FFB800',
     paddingVertical: 14,
-    borderRadius: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
-    shadowColor: '#FFB800',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  buttonText: {
-    color: '#0B0B0D',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    flex: 1,
-    marginRight: 8,
+    marginTop: 20,
   },
   primaryButton: {
-    flex: 2,
-    marginLeft: 8,
+    backgroundColor: '#E4A853',
+    flex: 1,
+  },
+  secondaryButton: {
+    backgroundColor: '#333',
+    paddingHorizontal: 20,
+  },
+  buttonText: {
+    color: '#121212',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   secondaryButtonText: {
-    color: '#A0A0AA',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontSize: 14,
   },
   rowButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 15,
+    gap: 12,
   },
-  infoLabel: {
-    color: '#A0A0AA',
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 20,
-  },
-  textLink: {
+  linkButton: {
     marginTop: 16,
     alignItems: 'center',
   },
-  textLinkLabel: {
-    color: '#71717A',
-    fontSize: 14,
-  },
-  methodSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-  },
-  methodBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(22, 20, 28, 0.6)',
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 184, 0, 0.12)',
-    alignItems: 'center',
-  },
-  methodBtnActive: {
-    backgroundColor: 'rgba(255, 184, 0, 0.12)',
-    borderColor: '#FFB800',
-  },
-  methodText: {
-    color: '#A0A0AA',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  methodTextActive: {
-    color: '#FFB800',
-  },
-  simulationCard: {
-    backgroundColor: '#131018',
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-  },
-  simulationHeader: {
+  linkText: {
+    color: '#E4A853',
     fontSize: 13,
-    fontWeight: 'bold',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  simulationBody: {
-    color: '#FAFAFA',
-    fontSize: 13,
-    lineHeight: 18,
   },
 });
