@@ -446,13 +446,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 15,
   },
-    borderColor: '#FFB800',
-    shadowColor: '#FFB800',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    marginBottom: 15,
-  },
   userName: {
     color: '#FFF',
     fontSize: 20,
