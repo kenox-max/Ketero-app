@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 
-export default function LoginScreen({ onLoginSuccess, onNavigateToRegister }) {
+export default function LoginScreen({ onLoginSuccess, onNavigateToRegister, onNavigateToForgotPassword }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,12 @@ export default function LoginScreen({ onLoginSuccess, onNavigateToRegister }) {
             autoCapitalize="none"
           />
 
-          <Text style={styles.label}>Password</Text>
+          <View style={styles.passwordLabelRow}>
+            <Text style={styles.label}>Password</Text>
+            <TouchableOpacity onPress={onNavigateToForgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Enter your password"
@@ -124,6 +129,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  passwordLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  forgotPasswordText: {
+    color: '#E4A853',
+    fontSize: 12,
+    fontWeight: '600',
   },
   input: {
     backgroundColor: '#151515',

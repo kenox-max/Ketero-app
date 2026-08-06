@@ -1,11 +1,27 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/ketero';
+const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/ketero';
 
 const SEED_PROFILES = [
+  {
+    name: 'System Admin',
+    phone: '0999000002',
+    email: 'admin@ketero.app',
+    password: 'password123',
+    age: 30,
+    gender: 'male',
+    location: 'Addis Ababa',
+    religion: 'Orthodox',
+    role: 'admin',
+    verifiedStatus: true,
+    isPremium: true,
+    isSystemUser: true,
+  },
   {
     name: 'Selamawit Kebede',
     phone: '0911000001',

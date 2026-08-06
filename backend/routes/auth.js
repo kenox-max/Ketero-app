@@ -65,6 +65,7 @@ router.post('/register', async (req, res) => {
 
     if (user) {
       res.status(201).json({
+        success: true,
         _id: user._id,
         name: user.name,
         email: user.email,
@@ -76,9 +77,21 @@ router.post('/register', async (req, res) => {
         languages: user.languages,
         hobbies: user.hobbies,
         profilePhoto: user.profilePhoto,
-        verifiedStatus: user.verifiedStatus,
+        verifiedStatus: true,
+        isVerified: true,
         isPremium: user.isPremium,
+        role: user.role || 'user',
         token: generateToken(user._id),
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          verifiedStatus: true,
+          isVerified: true,
+          isPremium: user.isPremium,
+          role: user.role || 'user',
+        },
       });
     } else {
       res.status(400).json({ error: 'Invalid user data' });
@@ -117,12 +130,15 @@ router.post('/login', async (req, res) => {
       email: user.email,
       phone: user.phone,
       age: user.age,
+      gender: user.gender,
       location: user.location,
       religion: user.religion,
       languages: user.languages,
       hobbies: user.hobbies,
+      profilePhoto: user.profilePhoto,
       verifiedStatus: user.verifiedStatus,
       isPremium: user.isPremium,
+      role: user.role || 'user',
       token: generateToken(user._id),
     });
   } catch (error) {
@@ -216,23 +232,50 @@ router.post('/send-otp', async (req, res) => {
     }
 
     const recipientEmail = email || (phone ? `${phone}@ketero.app` : null);
+    let emailSent = false;
+    let mailErrorMessage = null;
 
-    if (recipientEmail && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    const hasSmtpConfig = Boolean(
+      (process.env.BREVO_USER && process.env.BREVO_PASS) ||
+      (process.env.SMTP_USER && process.env.SMTP_PASS) ||
+      (process.env.EMAIL_USER && process.env.EMAIL_PASS)
+    );
+
+    if (recipientEmail && hasSmtpConfig) {
       try {
         await sendOTPCode(recipientEmail, otpCode);
-        console.log(`[NODEMAILER] Successfully delivered OTP code to ${recipientEmail}`);
+        console.log(`[SMTP EMAIL] Successfully delivered OTP code to ${recipientEmail}`);
+        emailSent = true;
       } catch (mailErr) {
-        console.error('[NODEMAILER ERROR] Failed to deliver email:', mailErr);
+        console.error('[SMTP ERROR] Failed to deliver email:', mailErr);
+        mailErrorMessage = mailErr.message || 'SMTP delivery failed';
       }
     } else {
       console.log(`[EXTERNAL OTP TRANSMITTER (SIMULATION)] 6-digit OTP code [${otpCode}] generated for ${targetKey}`);
     }
 
-    // Clean JSON response - DO NOT return OTP code in API payload
-    res.json({
+    // If SMTP is configured but sending failed, return error to client
+    if (hasSmtpConfig && !emailSent) {
+      return res.status(500).json({
+        error: `Failed to send email (${mailErrorMessage}). Please check your SMTP settings in backend/.env`,
+        devOtp: otpCode,
+      });
+    }
+
+    // Response logic
+    const responsePayload = {
       success: true,
-      message: 'Verification code sent to your email address.',
-    });
+      message: emailSent
+        ? `Verification code sent to ${recipientEmail}`
+        : `[Simulation Mode] Verification code generated for ${targetKey}. (SMTP credentials not configured in backend/.env)`,
+    };
+
+    // Attach devOtp if in dev mode or email not sent so user is never blocked
+    if (!emailSent || process.env.NODE_ENV !== 'production') {
+      responsePayload.devOtp = otpCode;
+    }
+
+    res.json(responsePayload);
   } catch (error) {
     console.error('Send OTP Error:', error);
     res.status(500).json({ error: 'Failed to send verification code' });
@@ -280,4 +323,107 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/forgot-password
+// @desc    Self-Service Password Reset via Email Verification (Generates 6-digit 15-min token)
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email address is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this email address' });
+    }
+
+    // Generate 6-digit reset token valid for 15 minutes
+    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetExpires;
+    await user.save();
+
+    let emailSent = false;
+    const hasSmtpConfig = Boolean(
+      (process.env.BREVO_USER && process.env.BREVO_PASS) ||
+      (process.env.SMTP_USER && process.env.SMTP_PASS) ||
+      (process.env.EMAIL_USER && process.env.EMAIL_PASS)
+    );
+
+    if (hasSmtpConfig) {
+      try {
+        await sendOTPCode(user.email, resetToken);
+        emailSent = true;
+      } catch (mailErr) {
+        console.error('[RESET PASSWORD EMAIL ERROR]:', mailErr);
+      }
+    }
+
+    const responsePayload = {
+      success: true,
+      message: emailSent
+        ? `Password reset code sent to ${user.email}`
+        : `Password reset token generated for ${user.email}`,
+    };
+
+    if (!emailSent || process.env.NODE_ENV !== 'production') {
+      responsePayload.devOtp = resetToken;
+    }
+
+    res.json(responsePayload);
+  } catch (error) {
+    console.error('Forgot Password Error:', error);
+    res.status(500).json({ error: 'Failed to process password reset request' });
+  }
+});
+
+// @route   POST /api/auth/reset-password
+// @desc    Validate token and hash new password using bcrypt
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body;
+
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ error: 'Please provide email, verification token, and new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ error: 'User account not found' });
+    }
+
+    if (
+      !user.resetPasswordToken ||
+      user.resetPasswordToken !== token ||
+      !user.resetPasswordExpires ||
+      user.resetPasswordExpires < new Date()
+    ) {
+      return res.status(400).json({ error: 'Invalid or expired password reset token' });
+    }
+
+    // Hash new password using bcrypt
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log in with your new password.',
+    });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 module.exports = router;
+

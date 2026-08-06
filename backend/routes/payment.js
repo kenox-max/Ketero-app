@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const PaymentRequest = require('../models/PaymentRequest');
 const { protect } = require('../middleware/auth');
+const { upload, uploadImageBuffer } = require('../config/cloudinary');
 const { createTelebirrH5PayPayload, verifySignature, buildSortedParamString } = require('../utils/telebirr');
 const { initializeChapaPayment, verifyChapaPayment, verifyChapaWebhookSignature } = require('../utils/chapa');
 
@@ -290,6 +292,77 @@ router.get('/telebirr/rsa-test', (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// @route   POST /api/payments/manual-submit
+// @desc    Submit Telebirr manual payment proof (Transaction ID + Screenshot)
+// @access  Private
+router.post('/manual-submit', protect, upload.single('receiptImage'), async (req, res) => {
+  try {
+    const { transactionId, amount = 199, planType = 'monthly' } = req.body;
+
+    if (!transactionId || !transactionId.trim()) {
+      return res.status(400).json({ error: 'Telebirr Transaction ID is required' });
+    }
+
+    let receiptImageUrl;
+    if (req.file) {
+      receiptImageUrl = await uploadImageBuffer(req.file.buffer, req.file.originalname, 'receipts');
+    } else if (req.body.receiptImageUrl) {
+      receiptImageUrl = req.body.receiptImageUrl;
+    } else {
+      return res.status(400).json({ error: 'Receipt screenshot image is required' });
+    }
+
+    // Check if user already has a pending payment request
+    const existingPending = await PaymentRequest.findOne({
+      userId: req.user._id,
+      status: 'pending',
+    });
+
+    if (existingPending) {
+      return res.status(400).json({
+        error: 'You already have a pending payment request under review by Admin. Please wait 15-30 minutes.',
+        paymentRequest: existingPending,
+      });
+    }
+
+    const paymentRequest = await PaymentRequest.create({
+      userId: req.user._id,
+      transactionId: transactionId.trim(),
+      receiptImageUrl,
+      amount: parseFloat(amount),
+      planType,
+      status: 'pending',
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Payment proof submitted successfully. Admin will review within 15-30 minutes.',
+      paymentRequest,
+    });
+  } catch (error) {
+    console.error('Manual Payment Submission Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to submit payment proof' });
+  }
+});
+
+// @route   GET /api/payments/my-status
+// @desc    Get logged-in user active/pending manual payment request status
+// @access  Private
+router.get('/my-status', protect, async (req, res) => {
+  try {
+    const latestRequest = await PaymentRequest.findOne({ userId: req.user._id }).sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      paymentRequest: latestRequest,
+      isPremium: req.user.isPremium,
+      premiumExpiresAt: req.user.premiumExpiresAt,
+    });
+  } catch (error) {
+    console.error('Get Payment Status Error:', error);
+    res.status(500).json({ error: 'Failed to fetch payment status' });
   }
 });
 

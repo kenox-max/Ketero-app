@@ -12,7 +12,7 @@ export const useAppStore = create((set, get) => ({
   socket: null,
 
   // Navigation & Screen routing State
-  currentScreen: 'LOGIN', // 'LOGIN', 'ONBOARDING', 'DASHBOARD', 'DISCOVERY', 'CONTACTS', 'PROFILE', 'CHAT', 'CALL', 'PAYMENT'
+  currentScreen: 'LOGIN', // 'LOGIN', 'ONBOARDING', 'DASHBOARD', 'DISCOVERY', 'CONTACTS', 'PROFILE', 'CHAT', 'CALL', 'PAYMENT', 'ADMIN', 'FORGOT_PASSWORD', 'SETTINGS'
   
   // Active context States
   activeChatUser: null,

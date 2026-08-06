@@ -10,12 +10,14 @@ import {
   Modal,
   SafeAreaView,
 } from 'react-native';
+import UpgradeModal from '../components/UpgradeModal';
 
-export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymentSuccess, onCancel }) {
+export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymentSuccess, onCancel, user }) {
   const [provider, setProvider] = useState('Telebirr'); // 'Telebirr' or 'Chapa'
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [simulationModal, setSimulationModal] = useState(false);
+  const [manualModalVisible, setManualModalVisible] = useState(false);
   const [transactionId, setTransactionId] = useState('');
 
   const handlePay = async () => {
@@ -165,11 +167,18 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
         )}
 
         {/* Actions */}
+        <TouchableOpacity
+          style={[styles.payBtn, { backgroundColor: '#FFB800' }]}
+          onPress={() => setManualModalVisible(true)}
+        >
+          <Text style={styles.payBtnText}>📱 Telebirr Manual Payment & Screenshot Proof</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.payBtn} onPress={handlePay} disabled={loading}>
           {loading ? (
             <ActivityIndicator color="#121212" />
           ) : (
-            <Text style={styles.payBtnText}>Pay with {provider}</Text>
+            <Text style={styles.payBtnText}>Pay via Gateway ({provider})</Text>
           )}
         </TouchableOpacity>
 
@@ -177,6 +186,18 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
           <Text style={styles.cancelBtnText}>Maybe Later</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Manual Telebirr Upgrade Modal */}
+      <UpgradeModal
+        visible={manualModalVisible}
+        onClose={() => setManualModalVisible(false)}
+        token={token}
+        apiBaseUrl={apiBaseUrl}
+        user={user}
+        onPaymentSubmitted={() => {
+          if (onPaymentSuccess) onPaymentSuccess();
+        }}
+      />
 
       {/* Mock payment portal Modal simulation */}
       <Modal visible={simulationModal} transparent animationType="slide">

@@ -65,11 +65,25 @@ const UserSchema = new mongoose.Schema({
   },
   verifiedStatus: {
     type: Boolean,
-    default: false,
+    default: true,
   },
   isPremium: {
     type: Boolean,
     default: false,
+  },
+  premiumExpiresAt: {
+    type: Date,
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user',
+  },
+  resetPasswordToken: {
+    type: String,
+  },
+  resetPasswordExpires: {
+    type: Date,
   },
   isSystemUser: {
     type: Boolean,

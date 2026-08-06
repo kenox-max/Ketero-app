@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Theme from '../styles/theme';
 
 const ETHIOPIAN_CITIES = ['Addis Ababa', 'Hawassa', 'Adama', 'Bahir Dar', 'Mekelle', 'Gondar', 'Dire Dawa', 'Jimma'];
@@ -23,6 +24,7 @@ export default function ProfileScreen({
   user,
   onUpdateProfile,
   onLogout,
+  onNavigateToSettings,
 }) {
   const [formData, setFormData] = useState({
     email: user?.email || '',
@@ -33,6 +35,78 @@ export default function ProfileScreen({
     profilePhoto: user?.profilePhoto || '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handlePickProfilePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Denied', 'Camera roll permissions are required to change your profile picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const localUri = result.assets[0].uri;
+        uploadProfileImage(localUri);
+      }
+    } catch (err) {
+      console.error('Pick Profile Photo Error:', err);
+      // Fallback text input prompt if device picker unavailable
+      Alert.prompt('Change Profile Picture', 'Enter photo URL:', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Save', onPress: (url) => url && setFormData((prev) => ({ ...prev, profilePhoto: url })) },
+      ]);
+    }
+  };
+
+  const uploadProfileImage = async (imageUri) => {
+    setUploadingPhoto(true);
+    try {
+      const formDataPayload = new FormData();
+      const filename = imageUri.split('/').pop() || 'profile.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formDataPayload.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      });
+
+      const response = await fetch(`${apiBaseUrl}/api/users/profile-picture`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formDataPayload,
+      });
+
+      const data = await response.json();
+      if (response.ok && data.profilePhoto) {
+        const fullPhotoUrl = data.profilePhoto.startsWith('/') ? `${apiBaseUrl}${data.profilePhoto}` : data.profilePhoto;
+        setFormData((prev) => ({ ...prev, profilePhoto: fullPhotoUrl }));
+        onUpdateProfile({
+          ...user,
+          profilePhoto: fullPhotoUrl,
+        });
+        Alert.alert('Success 🎉', 'Profile picture updated successfully!');
+      } else {
+        Alert.alert('Upload Error', data.error || 'Failed to upload image');
+      }
+    } catch (err) {
+      console.error('Upload Image Error:', err);
+      Alert.alert('Error', 'Network error uploading profile photo.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const toggleLanguage = (lang) => {
     setFormData((prev) => {
@@ -101,17 +175,27 @@ export default function ProfileScreen({
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* User Card */}
         <View style={styles.userCard}>
-          <Image
-            source={{
-              uri: formData.profilePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-            }}
-            style={styles.avatar}
-          />
+          <TouchableOpacity style={styles.avatarTouchable} onPress={handlePickProfilePhoto} disabled={uploadingPhoto}>
+            <Image
+              source={{
+                uri: formData.profilePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+              }}
+              style={styles.avatar}
+            />
+            <View style={styles.cameraIconBadge}>
+              {uploadingPhoto ? <ActivityIndicator size="small" color="#0B0B0D" /> : <Text style={styles.cameraIconText}>📷</Text>}
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handlePickProfilePhoto}>
+            <Text style={styles.changePhotoText}>Tap to Upload Device Photo</Text>
+          </TouchableOpacity>
+
           <Text style={styles.userName}>
             {user?.name}, {user?.age}
           </Text>
           <Text style={styles.phoneText}>📞 {user?.phone}{user?.email ? `  •  ✉️ ${user.email}` : ''}</Text>
           <View style={styles.badgeRow}>
+            {user?.role === 'admin' && <Text style={styles.adminBadge}>🛡️ Admin</Text>}
             {user?.verifiedStatus && <Text style={styles.verifiedBadge}>✓ Verified</Text>}
             {user?.isPremium && <Text style={styles.vipBadge}>👑 VIP Gold</Text>}
           </View>
@@ -133,15 +217,21 @@ export default function ProfileScreen({
             autoCapitalize="none"
           />
 
-          {/* Profile Photo URL */}
+          {/* Profile Photo URL / Device Picker Action */}
           <Text style={styles.label}>Profile Photo URL</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.profilePhoto}
-            onChangeText={(val) => setFormData({ ...formData, profilePhoto: val })}
-            placeholder="Image URL"
-            placeholderTextColor="#666"
-          />
+          <View style={styles.photoUrlRow}>
+            <TextInput
+              style={[styles.input, { flex: 1, marginBottom: 0 }]}
+              value={formData.profilePhoto}
+              onChangeText={(val) => setFormData({ ...formData, profilePhoto: val })}
+              placeholder="Image URL or tap image above"
+              placeholderTextColor="#666"
+            />
+            <TouchableOpacity style={styles.uploadMiniBtn} onPress={handlePickProfilePhoto}>
+              <Text style={styles.uploadMiniBtnText}>Choose Image</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 20 }} />
 
           {/* Location Selector */}
           <Text style={styles.label}>Location / City</Text>
@@ -237,6 +327,11 @@ export default function ProfileScreen({
           </TouchableOpacity>
         </View>
 
+        {/* Settings & Support Button */}
+        <TouchableOpacity style={styles.settingsBtn} onPress={onNavigateToSettings}>
+          <Text style={styles.settingsBtnText}>⚙️ Settings & Support Center</Text>
+        </TouchableOpacity>
+
         {/* Log Out Button */}
         <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
           <Text style={styles.logoutBtnText}>Log Out Account</Text>
@@ -273,11 +368,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 25,
   },
+  avatarTouchable: {
+    position: 'relative',
+    marginBottom: 8,
+  },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
+    borderColor: '#FFB800',
+    shadowColor: '#FFB800',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FFB800',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#0B0B0D',
+  },
+  cameraIconText: {
+    fontSize: 14,
+  },
+  changePhotoText: {
+    color: '#FFB800',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  adminBadge: {
+    backgroundColor: '#EF4444',
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  photoUrlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadMiniBtn: {
+    backgroundColor: 'rgba(255, 184, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FFB800',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  uploadMiniBtnText: {
+    color: '#FFB800',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  settingsBtn: {
+    backgroundColor: 'rgba(255, 184, 0, 0.1)',
+    borderWidth: 1.5,
+    borderColor: '#FFB800',
+    paddingVertical: 14,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  settingsBtnText: {
+    color: '#FFB800',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
     borderColor: '#FFB800',
     shadowColor: '#FFB800',
     shadowOffset: { width: 0, height: 0 },

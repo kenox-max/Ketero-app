@@ -27,6 +27,8 @@ const corsOriginHandler = (origin, callback) => {
   }
 };
 
+const path = require('path');
+
 // Setup Socket.io
 const io = socketIo(server, {
   cors: {
@@ -35,6 +37,7 @@ const io = socketIo(server, {
     credentials: true
   }
 });
+app.set('io', io);
 
 // Middleware
 app.use(cors({
@@ -43,7 +46,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect to MongoDB
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/ketero';
@@ -57,6 +60,10 @@ const matchRoutes = require('./routes/matches');
 const callRoutes = require('./routes/calls');
 const paymentRoutes = require('./routes/payment');
 const messageRoutes = require('./routes/messages');
+const adminRoutes = require('./routes/adminRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const storyRoutes = require('./routes/storyRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -64,6 +71,10 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/stories', storyRoutes);
+app.use('/api/users', userRoutes);
 
 // Simple Status Check Route
 app.get('/', (req, res) => {

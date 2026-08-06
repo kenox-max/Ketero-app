@@ -71,7 +71,16 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
       if (Platform.OS === 'web') alert(msg); else Alert.alert('Missing Preferences', msg);
       return;
     }
-    setStep(3);
+
+    const payload = {
+      ...formData,
+      age: parseInt(formData.age),
+      gender: formData.gender.toLowerCase(),
+      hobbies: formData.hobbies ? (typeof formData.hobbies === 'string' ? formData.hobbies.split(',').map((h) => h.trim()) : formData.hobbies) : [],
+      verifiedStatus: true,
+      isVerified: true,
+    };
+    onRegisterSuccess(payload);
   };
 
   const handleSendVerificationCode = async () => {
@@ -90,6 +99,9 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
       const data = await response.json();
       if (response.ok) {
         setIsOtpSent(true);
+        if (data.devOtp) {
+          setOtpCode(data.devOtp);
+        }
         const header = verificationMethod === 'WHATSAPP' ? '🟢 WhatsApp Gateway' : verificationMethod === 'EMAIL' ? '✉️ Email Transporter' : '💬 SMS Gateway';
         const body = data.message || `Verification code sent to your ${verificationMethod.toLowerCase()}. Please check your inbox.`;
         const brandColor = verificationMethod === 'WHATSAPP' ? '#25D366' : verificationMethod === 'EMAIL' ? '#1A73E8' : '#E4A853';
@@ -101,6 +113,9 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
           Alert.alert(header, body);
         }
       } else {
+        if (data.devOtp) {
+          setOtpCode(data.devOtp);
+        }
         const err = data.error || 'Failed to send code.';
         if (Platform.OS === 'web') alert(err); else Alert.alert('OTP Error', err);
       }
@@ -346,7 +361,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
               </TouchableOpacity>
 
               <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleGoToVerification}>
-                <Text style={styles.buttonText}>Find Matches</Text>
+                <Text style={styles.buttonText}>Complete & Start Dating 🎉</Text>
               </TouchableOpacity>
             </View>
           </View>

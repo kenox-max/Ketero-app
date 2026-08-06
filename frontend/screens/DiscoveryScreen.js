@@ -21,6 +21,7 @@ import Animated, {
 import useAppStore from '../store/useAppStore';
 import Theme from '../styles/theme';
 import Svg, { Circle, Path } from 'react-native-svg';
+import StoryBar from '../components/StoryBar';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 120;
@@ -65,6 +66,7 @@ function MatchParticle({ index }) {
 export default function DiscoveryScreen() {
   const {
     token,
+    user,
     apiUrl: apiBaseUrl,
     setCurrentScreen,
     setActiveChatUser,
@@ -323,6 +325,9 @@ export default function DiscoveryScreen() {
           <Text style={styles.profileNavText}>👤 Profile</Text>
         </TouchableOpacity>
       </View>
+
+      {/* 24H User Stories Bar */}
+      <StoryBar token={token} apiBaseUrl={apiBaseUrl} currentUser={user} />
 
       <View style={styles.cardContainer}>
         {renderCard()}

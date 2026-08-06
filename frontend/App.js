@@ -14,6 +14,9 @@ import PaymentScreen from './screens/PaymentScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import ContactsScreen from './screens/ContactsScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import VideoCallModal from './components/VideoCallModal';
 
 // Configurable API base url imported from config/api.js
@@ -246,6 +249,25 @@ export default function App() {
                 user={user}
                 onUpdateProfile={(updatedUser) => setUser(updatedUser)}
                 onLogout={handleLogout}
+                onNavigateToSettings={() => setCurrentScreen('SETTINGS')}
+              />
+            )}
+
+            {currentScreen === 'SETTINGS' && (
+              <SettingsScreen
+                token={token}
+                apiBaseUrl={apiUrl}
+                user={user}
+                onNavigateBack={() => setCurrentScreen('PROFILE')}
+                onNavigateToAdmin={() => setCurrentScreen('ADMIN')}
+              />
+            )}
+
+            {currentScreen === 'ADMIN' && (
+              <AdminDashboardScreen
+                token={token}
+                apiBaseUrl={apiUrl}
+                onNavigateBack={() => setCurrentScreen('DASHBOARD')}
               />
             )}
 
@@ -300,7 +322,7 @@ export default function App() {
           </View>
 
           {/* Bottom Navigation Tab Bar */}
-          {['DASHBOARD', 'DISCOVERY', 'CONTACTS', 'PROFILE'].includes(currentScreen) && (
+          {['DASHBOARD', 'DISCOVERY', 'CONTACTS', 'PROFILE', 'ADMIN'].includes(currentScreen) && (
             <View style={styles.bottomTabBar}>
               <TouchableOpacity
                 style={[styles.tabItem, currentScreen === 'DASHBOARD' && styles.tabItemActive]}
@@ -341,20 +363,38 @@ export default function App() {
                   Profile
                 </Text>
               </TouchableOpacity>
+
+              {user?.role === 'admin' && (
+                <TouchableOpacity
+                  style={[styles.tabItem, currentScreen === 'ADMIN' && styles.tabItemActive]}
+                  onPress={() => setCurrentScreen('ADMIN')}
+                >
+                  <Text style={styles.tabIcon}>🛡️</Text>
+                  <Text style={[styles.tabLabel, currentScreen === 'ADMIN' && styles.tabLabelActive, { color: '#EF4444' }]}>
+                    Admin
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {currentScreen === 'LOGIN' || !['LOGIN', 'ONBOARDING'].includes(currentScreen) ? (
-            <LoginScreen
-              onLoginSuccess={handleLogin}
-              onNavigateToRegister={() => setCurrentScreen('ONBOARDING')}
+          {currentScreen === 'FORGOT_PASSWORD' ? (
+            <ForgotPasswordScreen
+              apiBaseUrl={apiUrl}
+              onNavigateToLogin={() => setCurrentScreen('LOGIN')}
             />
-          ) : (
+          ) : currentScreen === 'ONBOARDING' ? (
             <OnboardingScreen
               onRegisterSuccess={handleRegister}
               onNavigateToLogin={() => setCurrentScreen('LOGIN')}
+            />
+          ) : (
+            <LoginScreen
+              onLoginSuccess={handleLogin}
+              onNavigateToRegister={() => setCurrentScreen('ONBOARDING')}
+              onNavigateToForgotPassword={() => setCurrentScreen('FORGOT_PASSWORD')}
             />
           )}
         </View>

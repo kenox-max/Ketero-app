@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import useAppStore from '../store/useAppStore';
 import Theme from '../styles/theme';
+import StoryBar from '../components/StoryBar';
 
 const { width } = Dimensions.get('window');
 
@@ -266,6 +267,11 @@ export default function DashboardScreen() {
               <Text style={styles.welcomeText}>Melkam Ken, 👋</Text>
               <Text style={styles.userName}>{user?.name || 'Ketero Member'}</Text>
               <View style={styles.badgeRow}>
+                {user?.role === 'admin' && (
+                  <View style={[styles.verifiedBadge, { backgroundColor: '#EF4444' }]}>
+                    <Text style={styles.badgeText}>🛡️ Admin</Text>
+                  </View>
+                )}
                 {user?.verifiedStatus && (
                   <View style={styles.verifiedBadge}>
                     <Text style={styles.badgeText}>✓ Verified Member</Text>
@@ -279,6 +285,9 @@ export default function DashboardScreen() {
               </View>
             </View>
           </View>
+
+          {/* 24H Stories System */}
+          <StoryBar token={token} apiBaseUrl={apiBaseUrl} currentUser={user} />
 
           {/* Completion Bar with Repeating Tilet Pattern and Animated Dancer */}
           <View style={styles.completionCard}>
