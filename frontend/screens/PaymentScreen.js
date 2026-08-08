@@ -77,7 +77,7 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
           provider,
           // The backend webhook fetches the user from the payload
           // For simplicity, we pass user details so webhook upgrades the right user
-          userId: paywallData.userId, 
+          userId: paywallData?.userId || user?._id, 
         }),
       });
 
@@ -107,7 +107,7 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
         <Text style={styles.crown}>👑</Text>
         <Text style={styles.title}>Unlock Ketero Premium</Text>
         <Text style={styles.description}>
-          {paywallData.message ||
+          {paywallData?.message ||
             'Get access to peer-to-peer WebRTC voice & video calls, special premium badges, and unlimited preferences filters.'}
         </Text>
 

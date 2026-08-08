@@ -37,6 +37,19 @@ export default function ProfileScreen({
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  React.useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        email: user.email || prev.email,
+        location: user.location || prev.location,
+        religion: user.religion || prev.religion,
+        languages: user.languages || prev.languages,
+        profilePhoto: user.profilePhoto || prev.profilePhoto,
+      }));
+    }
+  }, [user]);
+
   const handlePickProfilePhoto = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -49,19 +62,31 @@ export default function ProfileScreen({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const localUri = result.assets[0].uri;
-        uploadProfileImage(localUri);
+        const asset = result.assets[0];
+        let imageUri = asset.uri;
+        if (asset.base64) {
+          imageUri = `data:image/jpeg;base64,${asset.base64}`;
+        }
+        uploadProfileImage(imageUri);
       }
     } catch (err) {
       console.error('Pick Profile Photo Error:', err);
       // Fallback text input prompt if device picker unavailable
       Alert.prompt('Change Profile Picture', 'Enter photo URL:', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Save', onPress: (url) => url && setFormData((prev) => ({ ...prev, profilePhoto: url })) },
+        {
+          text: 'Save',
+          onPress: (url) => {
+            if (url) {
+              uploadProfileImage(url);
+            }
+          },
+        },
       ]);
     }
   };
@@ -69,30 +94,47 @@ export default function ProfileScreen({
   const uploadProfileImage = async (imageUri) => {
     setUploadingPhoto(true);
     try {
-      const formDataPayload = new FormData();
-      const filename = imageUri.split('/').pop() || 'profile.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      let response;
+      const isBase64OrUrl = imageUri.startsWith('data:') || imageUri.startsWith('http://') || imageUri.startsWith('https://') || Platform.OS === 'web';
 
-      formDataPayload.append('image', {
-        uri: imageUri,
-        name: filename,
-        type,
-      });
+      if (isBase64OrUrl) {
+        // Send direct JSON payload for Web or base64 data URIs
+        response = await fetch(`${apiBaseUrl}/api/users/profile-picture`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ image: imageUri }),
+        });
+      } else {
+        // Native mobile FormData upload
+        const formDataPayload = new FormData();
+        const filename = imageUri.split('/').pop() || 'profile.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      const response = await fetch(`${apiBaseUrl}/api/users/profile-picture`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formDataPayload,
-      });
+        formDataPayload.append('image', {
+          uri: imageUri,
+          name: filename,
+          type,
+        });
+
+        response = await fetch(`${apiBaseUrl}/api/users/profile-picture`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formDataPayload,
+        });
+      }
 
       const data = await response.json();
-      if (response.ok && data.profilePhoto) {
-        const fullPhotoUrl = data.profilePhoto.startsWith('/') ? `${apiBaseUrl}${data.profilePhoto}` : data.profilePhoto;
+      if (response.ok && (data.profilePhoto || data.user?.profilePhoto)) {
+        const photoPath = data.profilePhoto || data.user?.profilePhoto;
+        const fullPhotoUrl = photoPath.startsWith('/') ? `${apiBaseUrl}${photoPath}` : photoPath;
         setFormData((prev) => ({ ...prev, profilePhoto: fullPhotoUrl }));
-        onUpdateProfile({
+        onUpdateProfile(data.user || {
           ...user,
           profilePhoto: fullPhotoUrl,
         });

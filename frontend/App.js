@@ -364,6 +364,7 @@ export default function App() {
               <PaymentScreen
                 token={token}
                 apiBaseUrl={apiUrl}
+                user={user}
                 paywallData={activePaywallData}
                 onPaymentSuccess={() => {
                   setUser({ ...user, isPremium: true });
