@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Dimensions,
   Image,
+  Platform,
 } from 'react-native';
 import { VideoView } from '../services/webrtcShim';
 import { useWebRTC } from '../services/webrtcService';

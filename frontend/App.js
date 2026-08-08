@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, SafeAreaView, Platform, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, SafeAreaView, Platform, TouchableOpacity, Alert } from 'react-native';
 // import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAppStore } from './store/useAppStore';

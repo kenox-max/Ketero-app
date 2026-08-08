@@ -158,7 +158,7 @@ export default function DashboardScreen() {
   const {
     user,
     token,
-    apiUrl,
+    apiUrl: apiBaseUrl,
     setCurrentScreen,
     setUser,
   } = useAppStore();
@@ -200,10 +200,10 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!apiUrl || !token) return;
+      if (!apiBaseUrl || !token) return;
       try {
         setLoading(true);
-        const response = await fetch(`${apiUrl}/api/matches`, {
+        const response = await fetch(`${apiBaseUrl}/api/matches`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -220,13 +220,13 @@ export default function DashboardScreen() {
       }
     };
     fetchStats();
-  }, [apiUrl, token]);
+  }, [apiBaseUrl, token]);
 
   const handleSaveProfile = async () => {
-    if (!apiUrl || !token) return;
+    if (!apiBaseUrl || !token) return;
     try {
       setIsSaving(true);
-      const response = await fetch(`${apiUrl}/api/auth/profile`, {
+      const response = await fetch(`${apiBaseUrl}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
