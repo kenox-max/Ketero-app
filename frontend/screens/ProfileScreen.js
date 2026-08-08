@@ -378,6 +378,10 @@ const styles = StyleSheet.create({
     color: '#FFB800',
   },
   scrollContent: {
+    maxWidth: 800,
+    width: '100%',
+    marginHorizontal: 'auto',
+    alignSelf: 'center',
     padding: 20,
     paddingBottom: 40,
   },

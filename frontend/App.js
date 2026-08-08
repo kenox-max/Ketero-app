@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, SafeAreaView, Platform, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, SafeAreaView, Platform, TouchableOpacity, Alert, Dimensions } from 'react-native';
 // import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAppStore } from './store/useAppStore';
 import { API_BASE_URL } from './config/api';
 
+import Navbar from './components/Navbar';
+import LandingScreen from './screens/LandingScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
 import DiscoveryScreen from './screens/DiscoveryScreen';
@@ -227,6 +229,18 @@ export default function App() {
     }
   };
 
+  const [windowWidth, setWindowWidth] = useState(Dimensions.get('window').width);
+
+  useEffect(() => {
+    const onChange = ({ window }) => {
+      setWindowWidth(window.width);
+    };
+    const subscription = Dimensions.addEventListener('change', onChange);
+    return () => {
+      if (subscription?.remove) subscription.remove();
+    };
+  }, []);
+
   if (connecting) {
     return (
       <View style={styles.loaderContainer}>
@@ -242,6 +256,13 @@ export default function App() {
         <SafeAreaView style={styles.container}>
       {token ? (
         <View style={styles.mainAppContainer}>
+          <Navbar
+            currentScreen={currentScreen}
+            setCurrentScreen={setCurrentScreen}
+            user={user}
+            onNavigateToPayment={() => setCurrentScreen('PAYMENT')}
+            onLogout={handleLogout}
+          />
           <View style={styles.screenContainer}>
             {currentScreen === 'DASHBOARD' && (
               <DashboardScreen
@@ -358,8 +379,8 @@ export default function App() {
             )}
           </View>
 
-          {/* Bottom Navigation Tab Bar */}
-          {['DASHBOARD', 'DISCOVERY', 'CONTACTS', 'PROFILE', 'ADMIN'].includes(currentScreen) && (
+          {/* Bottom Navigation Tab Bar - Rendered ONLY on mobile viewports (<=768px) */}
+          {windowWidth <= 768 && ['DASHBOARD', 'DISCOVERY', 'CONTACTS', 'PROFILE', 'ADMIN'].includes(currentScreen) && (
             <View style={styles.bottomTabBar}>
               <TouchableOpacity
                 style={[styles.tabItem, currentScreen === 'DASHBOARD' && styles.tabItemActive]}
@@ -427,11 +448,16 @@ export default function App() {
               onRegisterSuccess={handleRegister}
               onNavigateToLogin={() => setCurrentScreen('LOGIN')}
             />
-          ) : (
+          ) : currentScreen === 'LOGIN' ? (
             <LoginScreen
               onLoginSuccess={handleLogin}
               onNavigateToRegister={() => setCurrentScreen('ONBOARDING')}
               onNavigateToForgotPassword={() => setCurrentScreen('FORGOT_PASSWORD')}
+            />
+          ) : (
+            <LandingScreen
+              onNavigateToRegister={() => setCurrentScreen('ONBOARDING')}
+              onNavigateToLogin={() => setCurrentScreen('LOGIN')}
             />
           )}
         </View>

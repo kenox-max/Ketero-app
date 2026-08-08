@@ -393,84 +393,57 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Right Column / Spotlight Banner Overlay */}
+        {/* Right Column / Telebirr Premium Upgrade Widget */}
         <View style={[styles.spotlightColumn, isWebWide && styles.flexRight]}>
-          <Text style={styles.spotlightHeaderTitle}>Ketero ቀጠሮ!</Text>
+          <Text style={styles.spotlightHeaderTitle}>Upgrade Membership</Text>
           
-          {/* Spotlight glowing visual beam with floating icons */}
-          <View style={styles.spotlightContainer}>
-            <LinearGradient
-              colors={['rgba(255, 184, 0, 0.25)', 'rgba(11, 11, 13, 0)']}
-              style={styles.spotlightBeam}
-            />
-            <SpotlightOverlay />
-            
-            {/* Spotlight Profile Details Card */}
-            <View style={styles.glassProfileCard}>
-              <View style={styles.avatarWrapper}>
-                <Image
-                  source={{
-                    uri: user?.profilePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250',
-                  }}
-                  style={styles.spotlightAvatar}
-                />
-              </View>
-              
-              <Text style={styles.spotlightNameAge}>
-                {user?.name || 'Ketero Member'}, {user?.age || 20}
-              </Text>
-              
-              {/* Form Input fields formatted inside the Card */}
-              <View style={styles.detailsForm}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>📞 Phone Number</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={editPhone}
-                    onChangeText={setEditPhone}
-                    placeholder="Enter Phone"
-                    placeholderTextColor="#71717A"
-                    keyboardType="phone-pad"
-                  />
-                </View>
-                
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>✉️ Email Address</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={editEmail}
-                    onChangeText={setEditEmail}
-                    placeholder="Enter Email"
-                    placeholderTextColor="#71717A"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>👤 Full Name</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={editName}
-                    onChangeText={setEditName}
-                    placeholder="Enter Full Name"
-                    placeholderTextColor="#71717A"
-                  />
-                </View>
-              </View>
-              
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveProfile}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="#0B0B0D" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save Profile Details</Text>
-                )}
-              </TouchableOpacity>
+          <View style={styles.glassProfileCard}>
+            <View style={styles.upgradeWidgetBadge}>
+              <Text style={styles.upgradeWidgetIcon}>👑</Text>
             </View>
+
+            <Text style={styles.spotlightNameAge}>
+              Get Premium Verified 👑
+            </Text>
+            <Text style={styles.upgradeWidgetSub}>
+              Boost trust and unlock exclusive matching features with Ketero Premium!
+            </Text>
+
+            <View style={styles.benefitsList}>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitCheck}>✓</Text>
+                <Text style={styles.benefitText}>Gold Verified Badge on Profile 👑</Text>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitCheck}>✓</Text>
+                <Text style={styles.benefitText}>Unlimited Swiping & Super Likes ♥</Text>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitCheck}>✓</Text>
+                <Text style={styles.benefitText}>Filter by Language, Religion & Region</Text>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitCheck}>✓</Text>
+                <Text style={styles.benefitText}>See Who Liked Your Profile 👁️</Text>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitCheck}>✓</Text>
+                <Text style={styles.benefitText}>Unlimited Voice & Video Calls 📞</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.upgradeWidgetBtn}
+              onPress={() => setCurrentScreen('PAYMENT')}
+            >
+              <Text style={styles.upgradeWidgetBtnText}>
+                {user?.isPremium ? 'Manage VIP Membership' : 'GET PREMIUM VERIFIED 👑'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.telebirrFootnote}>
+              ⚡ Instant 1-Click Telebirr & Chapa Local Payments
+            </Text>
           </View>
         </View>
 
@@ -486,10 +459,14 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   responsiveLayout: {
+    maxWidth: 1200,
+    width: '100%',
+    marginHorizontal: 'auto',
+    alignSelf: 'center',
     flexDirection: 'column',
     gap: 30,
   },
@@ -509,6 +486,71 @@ const styles = StyleSheet.create({
   spotlightColumn: {
     alignItems: 'center',
     gap: 15,
+    width: '100%',
+  },
+  upgradeWidgetBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 184, 0, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#FFB800',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  upgradeWidgetIcon: {
+    fontSize: 28,
+  },
+  upgradeWidgetSub: {
+    color: Theme.colors.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  benefitsList: {
+    width: '100%',
+    gap: 10,
+    marginBottom: 20,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  benefitCheck: {
+    color: '#FFB800',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  benefitText: {
+    color: '#FFF',
+    fontSize: 13,
+    flex: 1,
+  },
+  upgradeWidgetBtn: {
+    backgroundColor: '#FFB800',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 20,
+    alignItems: 'center',
+    shadowColor: '#FFB800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+    marginBottom: 12,
+  },
+  upgradeWidgetBtnText: {
+    color: '#0B0B0D',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  telebirrFootnote: {
+    color: '#71717A',
+    fontSize: 11,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',

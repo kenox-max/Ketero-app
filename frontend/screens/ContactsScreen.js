@@ -83,53 +83,69 @@ export default function ContactsScreen({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Connections</Text>
-        <TouchableOpacity style={styles.refreshBtn} onPress={fetchConnections} disabled={loading}>
-          <Text style={styles.refreshBtnText}>🔄</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search matches..."
-          placeholderTextColor="#666"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* Main Body */}
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#E4A853" />
-          <Text style={styles.loadingText}>Loading connections...</Text>
-        </View>
-      ) : filteredConnections.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Text style={styles.noConnectionsTitle}>No Connections Found</Text>
-          <Text style={styles.noConnectionsDesc}>
-            {searchQuery
-              ? "No results match your search query."
-              : "Mutual matches will appear here. Find people near you!"}
-          </Text>
-          {!searchQuery && (
-            <TouchableOpacity style={styles.exploreBtn} onPress={onNavigateToDiscovery}>
-              <Text style={styles.exploreBtnText}>Discover People</Text>
+      <View style={styles.contactsWrapper}>
+        {/* Left Column: Connections List */}
+        <View style={styles.leftColumn}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Connections & Chats</Text>
+            <TouchableOpacity style={styles.refreshBtn} onPress={fetchConnections} disabled={loading}>
+              <Text style={styles.refreshBtnText}>🔄</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Search Input */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search matches by name..."
+              placeholderTextColor="#666"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          {/* Main Body */}
+          {loading ? (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="large" color="#FFB800" />
+              <Text style={styles.loadingText}>Loading connections...</Text>
+            </View>
+          ) : filteredConnections.length === 0 ? (
+            <View style={styles.centerContainer}>
+              <Text style={styles.noConnectionsTitle}>No Connections Found</Text>
+              <Text style={styles.noConnectionsDesc}>
+                {searchQuery
+                  ? "No results match your search query."
+                  : "Mutual matches will appear here. Find people near you!"}
+              </Text>
+              {!searchQuery && (
+                <TouchableOpacity style={styles.exploreBtn} onPress={onNavigateToDiscovery}>
+                  <Text style={styles.exploreBtnText}>Discover People 🔍</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <FlatList
+              data={filteredConnections}
+              keyExtractor={(item) => item._id}
+              renderItem={renderConnectionItem}
+              contentContainerStyle={styles.listContent}
+            />
           )}
         </View>
-      ) : (
-        <FlatList
-          data={filteredConnections}
-          keyExtractor={(item) => item._id}
-          renderItem={renderConnectionItem}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+
+        {/* Right Column: Chat Placeholder / Preview */}
+        <View style={styles.rightColumn}>
+          <View style={styles.chatPlaceholderCard}>
+            <Text style={styles.chatPlaceholderIcon}>💬</Text>
+            <Text style={styles.chatPlaceholderTitle}>Your Conversations</Text>
+            <Text style={styles.chatPlaceholderSub}>
+              Select a connection from the list to start messaging in real time.
+            </Text>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -137,17 +153,62 @@ export default function ContactsScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#0D0E12',
+  },
+  contactsWrapper: {
+    maxWidth: 1200,
+    width: '100%',
+    marginHorizontal: 'auto',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flex: 1,
+  },
+  leftColumn: {
+    flex: 1,
+    maxWidth: 480,
+    borderRightWidth: 1,
+    borderColor: '#262933',
+  },
+  rightColumn: {
+    flex: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 30,
+  },
+  chatPlaceholderCard: {
+    backgroundColor: '#16181E',
+    borderWidth: 1,
+    borderColor: '#262933',
+    borderRadius: 24,
+    padding: 40,
+    alignItems: 'center',
+    maxWidth: 420,
+  },
+  chatPlaceholderIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  chatPlaceholderTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  chatPlaceholderSub: {
+    color: '#A0A5B5',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderColor: '#2C2C2C',
+    borderColor: '#262933',
   },
   headerTitle: {
     fontSize: 22,

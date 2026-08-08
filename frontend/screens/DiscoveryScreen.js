@@ -237,10 +237,12 @@ export default function DiscoveryScreen() {
   });
 
   const forceSwipe = (direction) => {
-    if (direction === 'right') {
+    if (direction === 'right' || direction === 'superlike') {
       translateX.value = withTiming(width + 150, { duration: 250 }, () => {
         runOnJS(onSwipeCompleteJS)('right');
       });
+    } else if (direction === 'hold') {
+      setCurrentIndex((prev) => prev + 1);
     } else {
       translateX.value = withTiming(-width - 150, { duration: 250 }, () => {
         runOnJS(onSwipeCompleteJS)('left');
@@ -317,32 +319,47 @@ export default function DiscoveryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ketero Discovery</Text>
-        <TouchableOpacity style={styles.profileNav} onPress={() => setCurrentScreen('PROFILE')}>
-          <Text style={styles.profileNavText}>👤 Profile</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* 24H User Stories Bar */}
       <StoryBar token={token} apiBaseUrl={apiBaseUrl} currentUser={user} />
 
-      <View style={styles.cardContainer}>
-        {renderCard()}
-      </View>
-
-      {/* Manual Swiping Buttons */}
-      {currentIndex < profiles.length && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={[styles.actionBtn, styles.passBtn]} onPress={() => forceSwipe('left')}>
-            <Text style={styles.actionBtnTextPass}>✕</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, styles.likeBtn]} onPress={() => forceSwipe('right')}>
-            <Text style={styles.actionBtnTextLike}>♥</Text>
-          </TouchableOpacity>
+      <View style={styles.discoveryWrapper}>
+        <View style={styles.cardContainer}>
+          {renderCard()}
         </View>
-      )}
+
+        {/* 4 Centered Action Buttons */}
+        {currentIndex < profiles.length && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.passBtn]}
+              onPress={() => forceSwipe('left')}
+            >
+              <Text style={styles.actionBtnTextPass}>✕</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.holdBtn]}
+              onPress={() => forceSwipe('hold')}
+            >
+              <Text style={styles.actionBtnTextHold}>⏸</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.likeBtn]}
+              onPress={() => forceSwipe('right')}
+            >
+              <Text style={styles.actionBtnTextLike}>♥</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.superLikeBtn]}
+              onPress={() => forceSwipe('superlike')}
+            >
+              <Text style={styles.actionBtnTextSuperLike}>★</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
       {/* Mutual Match Overlay with Starburst Particles */}
       {matchResult && (
@@ -521,16 +538,24 @@ const styles = StyleSheet.create({
     color: '#121212',
     fontWeight: 'bold',
   },
+  discoveryWrapper: {
+    maxWidth: 480,
+    width: '100%',
+    marginHorizontal: 'auto',
+    alignSelf: 'center',
+    flex: 1,
+  },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 30,
+    alignItems: 'center',
+    gap: 16,
     marginBottom: 25,
   },
   actionBtn: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -544,16 +569,34 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#E63946',
   },
+  holdBtn: {
+    backgroundColor: 'rgba(245, 184, 0, 0.1)',
+    borderWidth: 1.5,
+    borderColor: '#F5B800',
+  },
   likeBtn: {
     backgroundColor: Theme.colors.primaryGold,
+  },
+  superLikeBtn: {
+    backgroundColor: '#E59800',
   },
   actionBtnTextPass: {
     fontSize: 20,
     color: '#E63946',
     fontWeight: 'bold',
   },
+  actionBtnTextHold: {
+    fontSize: 18,
+    color: '#F5B800',
+    fontWeight: 'bold',
+  },
   actionBtnTextLike: {
-    fontSize: 24,
+    fontSize: 22,
+    color: '#0B0B0D',
+    fontWeight: 'bold',
+  },
+  actionBtnTextSuperLike: {
+    fontSize: 22,
     color: '#0B0B0D',
     fontWeight: 'bold',
   },
