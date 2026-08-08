@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 
 const ETHIOPIAN_CITIES = ['Addis Ababa', 'Hawassa', 'Adama', 'Bahir Dar', 'Mekelle', 'Gondar', 'Dire Dawa', 'Jimma'];
@@ -55,6 +56,8 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
         return;
       }
       setStep(2);
+    } else {
+      handleCompleteRegistration();
     }
   };
 
@@ -84,6 +87,7 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Image source={require('../assets/logo.png')} style={styles.logoImg} />
         <Text style={styles.appTitle}>Ketero ቀጠሮ</Text>
         <Text style={styles.subtitle}>Find your cultural match in Ethiopia</Text>
 
@@ -275,19 +279,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingTop: 50,
+    paddingTop: 30,
+    alignItems: 'center',
+  },
+  logoImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: '#F5B800',
+    alignSelf: 'center',
+    marginBottom: 12,
+    shadowColor: '#F5B800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   appTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#E4A853',
+    color: '#F5B800',
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#888',
+    color: '#A0A5B5',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 24,
   },
   card: {
     backgroundColor: '#1E1E1E',

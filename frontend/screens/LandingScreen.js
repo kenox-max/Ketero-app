@@ -19,9 +19,7 @@ export default function LandingScreen({ onNavigateToRegister, onNavigateToLogin 
         {/* Top Header */}
         <View style={styles.topHeader}>
           <View style={styles.brandRow}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoIcon}>ቀ</Text>
-            </View>
+            <Image source={require('../assets/logo.png')} style={styles.headerLogoImg} />
             <Text style={styles.brandName}>Ketero ቀጠሮ</Text>
           </View>
           <View style={styles.headerAuthBtns}>
@@ -36,6 +34,8 @@ export default function LandingScreen({ onNavigateToRegister, onNavigateToLogin 
 
         {/* Hero Section */}
         <View style={styles.heroSection}>
+          <Image source={require('../assets/logo.png')} style={styles.heroLogoImg} />
+
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>🇪🇹 #1 Culturally Matched Dating App in Ethiopia</Text>
           </View>
@@ -143,18 +143,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  logoBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F5B800',
-    justifyContent: 'center',
-    alignItems: 'center',
+  headerLogoImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#F5B800',
   },
-  logoIcon: {
-    color: '#0D0E12',
-    fontSize: 24,
-    fontWeight: '900',
+  heroLogoImg: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#F5B800',
+    marginBottom: 24,
+    shadowColor: '#F5B800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
   },
   brandName: {
     color: '#F5B800',

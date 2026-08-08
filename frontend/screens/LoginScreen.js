@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 
 export default function LoginScreen({ onLoginSuccess, onNavigateToRegister, onNavigateToForgotPassword }) {
@@ -37,6 +38,7 @@ export default function LoginScreen({ onLoginSuccess, onNavigateToRegister, onNa
       style={styles.container}
     >
       <View style={styles.content}>
+        <Image source={require('../assets/logo.png')} style={styles.logoImg} />
         <Text style={styles.appTitle}>Ketero ቀጠሮ</Text>
         <Text style={styles.subtitle}>Sign in to your Ketero dating profile</Text>
 
@@ -96,10 +98,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  logoImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: '#F5B800',
+    marginBottom: 16,
+    shadowColor: '#F5B800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
   appTitle: {
     fontSize: 34,
     fontWeight: 'bold',
-    color: '#E4A853',
+    color: '#F5B800',
     letterSpacing: 1.5,
     marginBottom: 4,
   },

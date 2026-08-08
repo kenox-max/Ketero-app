@@ -30,9 +30,10 @@ export default function Navbar({
           style={styles.brandContainer}
           onPress={() => setCurrentScreen(user ? 'DASHBOARD' : 'LANDING')}
         >
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoIcon}>ቀ</Text>
-          </View>
+          <Image
+            source={require('../assets/logo.png')}
+            style={styles.logoImg}
+          />
           <View style={styles.brandTextContainer}>
             <Text style={styles.brandTitle}>Ketero ቀጠሮ</Text>
             {isDesktop && <Text style={styles.brandSubtitle}>Authentic Ethiopian Matches</Text>}
@@ -155,22 +156,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  logoBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#F5B800',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#F5B800',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  logoIcon: {
-    color: '#0D0E12',
-    fontSize: 22,
-    fontWeight: '900',
+  logoImg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: '#F5B800',
   },
   brandTextContainer: {
     justifyContent: 'center',
