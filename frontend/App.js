@@ -369,11 +369,11 @@ export default function App() {
                 onPaymentSuccess={() => {
                   setUser({ ...user, isPremium: true });
                   syncProfile();
-                  setCurrentScreen('CHAT');
+                  setCurrentScreen(activeChatUser ? 'CHAT' : 'DASHBOARD');
                   setActivePaywallData(null);
                 }}
                 onCancel={() => {
-                  setCurrentScreen('CHAT');
+                  setCurrentScreen(activeChatUser ? 'CHAT' : 'DASHBOARD');
                   setActivePaywallData(null);
                 }}
               />

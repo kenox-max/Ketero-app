@@ -194,8 +194,9 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
         token={token}
         apiBaseUrl={apiBaseUrl}
         user={user}
-        onPaymentSubmitted={() => {
-          if (onPaymentSuccess) onPaymentSuccess();
+        onPaymentSubmitted={(paymentRequest) => {
+          // Submission received and pending admin approval.
+          // The modal stays open showing the 'Payment Pending Admin Approval' card.
         }}
       />
 

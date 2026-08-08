@@ -30,12 +30,14 @@ export default function ChatScreen({
   const flatListRef = useRef(null);
 
   useEffect(() => {
+    if (!matchedUser || !matchedUser._id) return;
+
     // If running in local simulation (offline mode), load welcome messages
     if (!apiBaseUrl) {
       setMessages([
         {
           senderId: matchedUser._id,
-          senderName: matchedUser.name,
+          senderName: matchedUser?.name || 'Match',
           text: `Selam! I'm so glad we matched on Ketero. 😊`,
           timestamp: new Date(Date.now() - 60000),
         },
@@ -103,7 +105,25 @@ export default function ChatScreen({
         socket.disconnect();
       }
     };
-  }, [matchedUser._id, token, apiBaseUrl]);
+  }, [matchedUser?._id, token, apiBaseUrl]);
+
+  if (!matchedUser || !matchedUser._id) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>💬</Text>
+        <Text style={{ color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>No Active Chat Selected</Text>
+        <Text style={{ color: '#A0A5B5', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+          Select a match from your Connections list to start chatting.
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#F5B800', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 }}
+          onPress={onNavigateBack}
+        >
+          <Text style={{ color: '#0D0E12', fontWeight: 'bold', fontSize: 14 }}>Back to Connections 👥</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const handleSendMessage = () => {
     if (!inputText.trim()) return;
