@@ -41,14 +41,24 @@ const upload = multer({
 
 // @route   POST /api/users/profile-picture
 // @desc    Direct Device Profile Picture Upload
-router.post('/profile-picture', protect, upload.single('image'), async (req, res) => {
+router.post('/profile-picture', protect, (req, res, next) => {
+  if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+    return next();
+  }
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      console.warn('Multer upload notice:', err.message);
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     let photoUrl;
 
     if (req.file) {
       // Relative path accessible via /uploads/filename
       photoUrl = `/uploads/${req.file.filename}`;
-    } else if (req.body.image) {
+    } else if (req.body && req.body.image) {
       // Handle direct base64 / URL string payload
       photoUrl = req.body.image;
     } else {
