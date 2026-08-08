@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 
 export default function Navbar({
@@ -16,6 +17,8 @@ export default function Navbar({
   onNavigateToLanding,
   onLogout,
 }) {
+  const { width } = useWindowDimensions();
+  const isDesktop = width > 768;
   const isPremium = user?.isPremium || user?.badgeType === 'premium_verified';
   const isVerified = user?.isVerified || user?.badgeType === 'photo_verified';
 
@@ -32,59 +35,61 @@ export default function Navbar({
           </View>
           <View style={styles.brandTextContainer}>
             <Text style={styles.brandTitle}>Ketero ቀጠሮ</Text>
-            <Text style={styles.brandSubtitle}>Authentic Ethiopian Matches</Text>
+            {isDesktop && <Text style={styles.brandSubtitle}>Authentic Ethiopian Matches</Text>}
           </View>
         </TouchableOpacity>
 
-        {/* Center: Desktop Navigation Links */}
-        <View style={styles.navLinks}>
-          <TouchableOpacity
-            style={[styles.navItem, currentScreen === 'DASHBOARD' && styles.navItemActive]}
-            onPress={() => setCurrentScreen('DASHBOARD')}
-          >
-            <Text style={[styles.navText, currentScreen === 'DASHBOARD' && styles.navTextActive]}>
-              📊 Dashboard
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.navItem, currentScreen === 'DISCOVERY' && styles.navItemActive]}
-            onPress={() => setCurrentScreen('DISCOVERY')}
-          >
-            <Text style={[styles.navText, currentScreen === 'DISCOVERY' && styles.navTextActive]}>
-              🔍 Discovery
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.navItem, currentScreen === 'CONTACTS' && styles.navItemActive]}
-            onPress={() => setCurrentScreen('CONTACTS')}
-          >
-            <Text style={[styles.navText, currentScreen === 'CONTACTS' && styles.navTextActive]}>
-              👥 Contacts
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.navItem, currentScreen === 'PROFILE' && styles.navItemActive]}
-            onPress={() => setCurrentScreen('PROFILE')}
-          >
-            <Text style={[styles.navText, currentScreen === 'PROFILE' && styles.navTextActive]}>
-              👤 Profile
-            </Text>
-          </TouchableOpacity>
-
-          {user?.role === 'admin' && (
+        {/* Center: Desktop Navigation Links (Hidden on Mobile) */}
+        {isDesktop && (
+          <View style={styles.navLinks}>
             <TouchableOpacity
-              style={[styles.navItem, currentScreen === 'ADMIN' && styles.navItemActive]}
-              onPress={() => setCurrentScreen('ADMIN')}
+              style={[styles.navItem, currentScreen === 'DASHBOARD' && styles.navItemActive]}
+              onPress={() => setCurrentScreen('DASHBOARD')}
             >
-              <Text style={[styles.navText, { color: '#EF4444' }, currentScreen === 'ADMIN' && styles.navTextActive]}>
-                🛡️ Admin
+              <Text style={[styles.navText, currentScreen === 'DASHBOARD' && styles.navTextActive]}>
+                📊 Dashboard
               </Text>
             </TouchableOpacity>
-          )}
-        </View>
+
+            <TouchableOpacity
+              style={[styles.navItem, currentScreen === 'DISCOVERY' && styles.navItemActive]}
+              onPress={() => setCurrentScreen('DISCOVERY')}
+            >
+              <Text style={[styles.navText, currentScreen === 'DISCOVERY' && styles.navTextActive]}>
+                🔍 Discovery
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navItem, currentScreen === 'CONTACTS' && styles.navItemActive]}
+              onPress={() => setCurrentScreen('CONTACTS')}
+            >
+              <Text style={[styles.navText, currentScreen === 'CONTACTS' && styles.navTextActive]}>
+                👥 Contacts
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navItem, currentScreen === 'PROFILE' && styles.navItemActive]}
+              onPress={() => setCurrentScreen('PROFILE')}
+            >
+              <Text style={[styles.navText, currentScreen === 'PROFILE' && styles.navTextActive]}>
+                👤 Profile
+              </Text>
+            </TouchableOpacity>
+
+            {user?.role === 'admin' && (
+              <TouchableOpacity
+                style={[styles.navItem, currentScreen === 'ADMIN' && styles.navItemActive]}
+                onPress={() => setCurrentScreen('ADMIN')}
+              >
+                <Text style={[styles.navText, { color: '#EF4444' }, currentScreen === 'ADMIN' && styles.navTextActive]}>
+                  🛡️ Admin
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Right: User Profile Avatar & Upgrade Button */}
         <View style={styles.rightContainer}>

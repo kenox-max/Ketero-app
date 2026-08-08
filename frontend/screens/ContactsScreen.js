@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 
 export default function ContactsScreen({
@@ -17,6 +18,8 @@ export default function ContactsScreen({
   onSelectContact,
   onNavigateToDiscovery,
 }) {
+  const { width } = useWindowDimensions();
+  const isDesktop = width > 768;
   const [connections, setConnections] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -85,7 +88,7 @@ export default function ContactsScreen({
     <SafeAreaView style={styles.container}>
       <View style={styles.contactsWrapper}>
         {/* Left Column: Connections List */}
-        <View style={styles.leftColumn}>
+        <View style={[styles.leftColumn, !isDesktop && { maxWidth: '100%', borderRightWidth: 0 }]}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Connections & Chats</Text>
@@ -135,16 +138,18 @@ export default function ContactsScreen({
           )}
         </View>
 
-        {/* Right Column: Chat Placeholder / Preview */}
-        <View style={styles.rightColumn}>
-          <View style={styles.chatPlaceholderCard}>
-            <Text style={styles.chatPlaceholderIcon}>💬</Text>
-            <Text style={styles.chatPlaceholderTitle}>Your Conversations</Text>
-            <Text style={styles.chatPlaceholderSub}>
-              Select a connection from the list to start messaging in real time.
-            </Text>
+        {/* Right Column: Chat Placeholder / Preview (Desktop only) */}
+        {isDesktop && (
+          <View style={styles.rightColumn}>
+            <View style={styles.chatPlaceholderCard}>
+              <Text style={styles.chatPlaceholderIcon}>💬</Text>
+              <Text style={styles.chatPlaceholderTitle}>Your Conversations</Text>
+              <Text style={styles.chatPlaceholderSub}>
+                Select a connection from the list to start messaging in real time.
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
       </View>
     </SafeAreaView>
   );

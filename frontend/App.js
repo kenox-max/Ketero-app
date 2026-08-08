@@ -502,9 +502,9 @@ const styles = StyleSheet.create({
   bottomTabBar: {
     flexDirection: 'row',
     height: 65,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#16181E',
     borderTopWidth: 1,
-    borderColor: '#2C2C2C',
+    borderColor: '#262933',
     justifyContent: 'space-around',
     alignItems: 'center',
   },
@@ -513,20 +513,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flex: 1,
     height: '100%',
+    paddingVertical: 6,
   },
   tabItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: 'rgba(245, 184, 0, 0.1)',
   },
   tabIcon: {
-    fontSize: 18,
-    marginBottom: 4,
+    fontSize: 20,
+    marginBottom: 2,
   },
   tabLabel: {
-    color: '#888',
-    fontSize: 10,
+    color: '#A0A5B5',
+    fontSize: 11,
     fontWeight: '600',
   },
   tabLabelActive: {
-    color: '#E4A853',
+    color: '#F5B800',
+    fontWeight: '800',
   },
 });
