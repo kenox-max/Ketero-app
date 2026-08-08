@@ -196,10 +196,29 @@ export default function ProfileScreen({
           <Text style={styles.phoneText}>📞 {user?.phone}{user?.email ? `  •  ✉️ ${user.email}` : ''}</Text>
           <View style={styles.badgeRow}>
             {user?.role === 'admin' && <Text style={styles.adminBadge}>🛡️ Admin</Text>}
-            {user?.verifiedStatus && <Text style={styles.verifiedBadge}>✓ Verified</Text>}
-            {user?.isPremium && <Text style={styles.vipBadge}>👑 VIP Gold</Text>}
+            {(user?.isPremium || user?.badgeType === 'premium_verified') ? (
+              <Text style={styles.vipBadge}>👑 Premium Gold</Text>
+            ) : (user?.isVerified || user?.badgeType === 'photo_verified') ? (
+              <Text style={styles.verifiedBadge}>✓ Photo Verified</Text>
+            ) : null}
           </View>
         </View>
+
+        {/* Verification Callout Banner for Unverified Users */}
+        {!user?.isPremium && !user?.isVerified && (
+          <View style={styles.verificationBanner}>
+            <Text style={styles.verificationBannerTitle}>Get Verified & Build Trust 🛡️</Text>
+            <Text style={styles.verificationBannerText}>
+              Get Verified: Upgrade to Premium to unlock the Gold Verified Badge 👑 or complete Photo Verification to show matches you are real!
+            </Text>
+            <TouchableOpacity
+              style={styles.verificationBannerBtn}
+              onPress={() => onNavigateToSettings && onNavigateToSettings()}
+            >
+              <Text style={styles.verificationBannerBtnText}>Get Badge & Upgrade</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Edit Form */}
         <View style={styles.formCard}>
@@ -580,5 +599,38 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  verificationBanner: {
+    backgroundColor: 'rgba(255, 184, 0, 0.08)',
+    borderColor: '#FFB800',
+    borderWidth: 1.5,
+    borderRadius: 20,
+    padding: 18,
+    marginHorizontal: 16,
+    marginBottom: 20,
+  },
+  verificationBannerTitle: {
+    color: '#FFB800',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  verificationBannerText: {
+    color: '#DDD',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  verificationBannerBtn: {
+    backgroundColor: '#FFB800',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  verificationBannerBtnText: {
+    color: '#0B0B0D',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 });

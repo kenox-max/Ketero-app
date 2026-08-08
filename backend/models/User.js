@@ -65,7 +65,16 @@ const UserSchema = new mongoose.Schema({
   },
   verifiedStatus: {
     type: Boolean,
-    default: true,
+    default: false,
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  badgeType: {
+    type: String,
+    enum: ['none', 'photo_verified', 'premium_verified'],
+    default: 'none',
   },
   isPremium: {
     type: Boolean,

@@ -137,6 +137,31 @@ export default function AdminDashboardScreen({ token, apiBaseUrl, onNavigateBack
     );
   };
 
+  const handleVerifyPhoto = async (userId) => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/admin/verify-photo/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert('Photo Verified', data.message || 'User granted Photo Verified blue badge.');
+        setUsers((prev) =>
+          prev.map((u) =>
+            u._id === userId ? { ...u, isVerified: true, badgeType: u.badgeType === 'premium_verified' ? 'premium_verified' : 'photo_verified' } : u
+          )
+        );
+      } else {
+        Alert.alert('Error', data.error || 'Failed to verify photo');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Network error approving photo verification.');
+    }
+  };
+
   const handleUpdateReportStatus = async (reportId, newStatus) => {
     setUpdatingReportId(reportId);
     try {
@@ -416,8 +441,13 @@ export default function AdminDashboardScreen({ token, apiBaseUrl, onNavigateBack
                       <Text style={styles.userName}>{item.name}</Text>
                       <View style={styles.badgeRow}>
                         {item.role === 'admin' && <Text style={styles.adminBadge}>ADMIN</Text>}
-                        {item.isPremium && <Text style={styles.vipBadge}>VIP GOLD</Text>}
-                        {item.verifiedStatus && <Text style={styles.verifiedBadge}>VERIFIED</Text>}
+                        {(item.isPremium || item.badgeType === 'premium_verified') ? (
+                          <Text style={styles.vipBadge}>👑 GOLD</Text>
+                        ) : (item.isVerified || item.badgeType === 'photo_verified') ? (
+                          <Text style={styles.verifiedBadge}>🔵 PHOTO VERIFIED</Text>
+                        ) : (
+                          <Text style={[styles.verifiedBadge, { backgroundColor: 'rgba(255,255,255,0.05)', color: '#888' }]}>NO BADGE</Text>
+                        )}
                       </View>
                     </View>
                     <View style={styles.userMetaRow}>
@@ -425,6 +455,14 @@ export default function AdminDashboardScreen({ token, apiBaseUrl, onNavigateBack
                       <Text style={styles.metaItem}>Age: <Text style={styles.metaVal}>{item.age}</Text></Text>
                       <Text style={styles.metaItem}>Joined: <Text style={styles.metaVal}>{new Date(item.createdAt).toLocaleDateString()}</Text></Text>
                     </View>
+                    {(!item.isVerified && item.badgeType !== 'photo_verified' && item.badgeType !== 'premium_verified' && !item.isPremium) && (
+                      <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: '#3B82F6', marginTop: 10, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6 }]}
+                        onPress={() => handleVerifyPhoto(item._id)}
+                      >
+                        <Text style={[styles.actionBtnText, { fontSize: 12 }]}>Grant Photo Verification 🔵</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
                 ListEmptyComponent={

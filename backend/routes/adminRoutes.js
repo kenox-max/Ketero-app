@@ -61,7 +61,7 @@ router.get('/analytics', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const users = await User.find()
-      .select('_id name gender age isPremium verifiedStatus role createdAt')
+      .select('_id name gender age isPremium isVerified badgeType verifiedStatus role createdAt')
       .sort({ createdAt: -1 });
 
     res.json(users);
@@ -143,10 +143,13 @@ router.patch('/approve-payment/:requestId', async (req, res) => {
     paymentRequest.updatedAt = new Date();
     await paymentRequest.save();
 
-    // Grant VIP Premium to User
+    // Grant VIP Premium to User & Gold Verified Badge
     const user = await User.findById(paymentRequest.userId);
     if (user) {
       user.isPremium = true;
+      user.badgeType = 'premium_verified';
+      user.isVerified = true;
+      user.verifiedStatus = true;
       const durationDays = paymentRequest.planType === 'yearly' ? 365 : 30;
       user.premiumExpiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
       await user.save();
@@ -154,13 +157,15 @@ router.patch('/approve-payment/:requestId', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'User upgraded to Premium successfully.',
+      message: 'User upgraded to Premium Gold Verified successfully.',
       paymentRequest,
       user: user
         ? {
             _id: user._id,
             name: user.name,
             isPremium: user.isPremium,
+            badgeType: user.badgeType,
+            isVerified: user.isVerified,
             premiumExpiresAt: user.premiumExpiresAt,
           }
         : null,
@@ -168,6 +173,40 @@ router.patch('/approve-payment/:requestId', async (req, res) => {
   } catch (error) {
     console.error('Approve Payment Error:', error);
     res.status(500).json({ error: 'Failed to approve payment request' });
+  }
+});
+
+// @route   PATCH /api/admin/verify-photo/:userId
+// @desc    Approve selfie photo verification and assign Photo Verified blue badge
+router.patch('/verify-photo/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.isVerified = true;
+    user.verifiedStatus = true;
+    // Keep premium_verified if user is already premium, otherwise set photo_verified
+    if (!user.isPremium && user.badgeType !== 'premium_verified') {
+      user.badgeType = 'photo_verified';
+    }
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `User ${user.name} photo verification approved (Blue Badge).`,
+      user: {
+        _id: user._id,
+        name: user.name,
+        isVerified: user.isVerified,
+        badgeType: user.badgeType,
+        isPremium: user.isPremium,
+      },
+    });
+  } catch (error) {
+    console.error('Photo Verification Approval Error:', error);
+    res.status(500).json({ error: 'Failed to approve photo verification' });
   }
 });
 

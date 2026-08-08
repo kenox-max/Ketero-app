@@ -268,16 +268,15 @@ export default function DiscoveryScreen() {
           
           <View style={styles.glassOverlayContainer}>
             <View style={styles.tagRow}>
-              {currentProfile.verifiedStatus && (
-                <View style={[styles.badge, styles.verifiedBadge]}>
-                  <Text style={styles.badgeText}>✓ Verified</Text>
-                </View>
-              )}
-              {currentProfile.isPremium && (
+              {(currentProfile.isPremium || currentProfile.badgeType === 'premium_verified') ? (
                 <View style={[styles.badge, styles.premiumBadge]}>
-                  <Text style={styles.badgeText}>👑 VIP</Text>
+                  <Text style={styles.badgeText}>👑 Premium Verified</Text>
                 </View>
-              )}
+              ) : (currentProfile.isVerified || currentProfile.badgeType === 'photo_verified') ? (
+                <View style={[styles.badge, styles.verifiedBadge]}>
+                  <Text style={styles.badgeText}>✓ Photo Verified</Text>
+                </View>
+              ) : null}
               <View style={[styles.badge, styles.religionBadge]}>
                 <Text style={styles.badgeText}>{currentProfile.religion}</Text>
               </View>

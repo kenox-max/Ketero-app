@@ -118,6 +118,9 @@ router.post('/webhook', async (req, res) => {
       }
 
       user.isPremium = true;
+      user.badgeType = 'premium_verified';
+      user.isVerified = true;
+      user.verifiedStatus = true;
       await user.save();
 
       if (transactionId) {

@@ -70,8 +70,10 @@ export default function OnboardingScreen({ onRegisterSuccess, onNavigateToLogin 
       age: parseInt(formData.age),
       gender: formData.gender.toLowerCase(),
       hobbies: formData.hobbies ? (typeof formData.hobbies === 'string' ? formData.hobbies.split(',').map((h) => h.trim()) : formData.hobbies) : [],
-      verifiedStatus: true,
-      isVerified: true,
+      verifiedStatus: false,
+      isVerified: false,
+      badgeType: 'none',
+      isPremium: false,
     };
     onRegisterSuccess(payload);
   };

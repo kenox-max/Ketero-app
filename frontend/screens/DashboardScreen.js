@@ -272,16 +272,15 @@ export default function DashboardScreen() {
                     <Text style={styles.badgeText}>🛡️ Admin</Text>
                   </View>
                 )}
-                {user?.verifiedStatus && (
-                  <View style={styles.verifiedBadge}>
-                    <Text style={styles.badgeText}>✓ Verified Member</Text>
-                  </View>
-                )}
-                {user?.isPremium && (
+                {(user?.isPremium || user?.badgeType === 'premium_verified') ? (
                   <View style={styles.vipBadge}>
-                    <Text style={styles.badgeText}>👑 VIP Gold</Text>
+                    <Text style={styles.badgeText}>👑 Premium Gold</Text>
                   </View>
-                )}
+                ) : (user?.isVerified || user?.badgeType === 'photo_verified') ? (
+                  <View style={styles.verifiedBadge}>
+                    <Text style={styles.badgeText}>✓ Photo Verified</Text>
+                  </View>
+                ) : null}
               </View>
             </View>
           </View>
