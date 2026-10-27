@@ -6,12 +6,21 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/logo.png",
+    "scheme": "ketero",
+    "backgroundColor": "#0B0B0D",
     "web": {
       "favicon": "./assets/logo.png",
       "bundler": "metro"
     },
     "android": {
-      "package": "com.ketero.app"
+      "package": "com.ketero.app",
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     }
   }
 }

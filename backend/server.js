@@ -4,11 +4,14 @@ const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const User = require('./models/User');
 const Message = require('./models/Message');
 
 // Load environment variables
 require('dotenv').config();
+
+let mongoServer;
 
 const app = express();
 const server = http.createServer(app);
@@ -16,8 +19,10 @@ const server = http.createServer(app);
 const allowedOrigins = [
   'http://localhost:8081',
   'http://localhost:3000',
-  process.env.FRONTEND_URL, // e.g., https://ketero.vercel.app
-];
+  'https://ketero-app.vercel.app',
+  'https://ketero.vercel.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
 const corsOriginHandler = (origin, callback) => {
   if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
@@ -48,11 +53,36 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Connect to MongoDB
-const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/ketero';
-mongoose.connect(mongoURI)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+// Connect to MongoDB. If the configured URI is missing or invalid, fall back to an in-memory MongoDB instance.
+const connectDatabase = async () => {
+  const configuredUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+
+  if (configuredUri) {
+    try {
+      await mongoose.connect(configuredUri);
+      console.log('MongoDB connected successfully using configured URI');
+      return;
+    } catch (error) {
+      console.warn('Configured MongoDB URI failed, falling back to in-memory MongoDB:', error.message);
+    }
+  }
+
+  mongoServer = await MongoMemoryServer.create();
+  const memoryUri = mongoServer.getUri();
+  console.log('No valid MongoDB URI found. Starting in-memory MongoDB for local development.');
+  await mongoose.connect(memoryUri);
+  console.log('MongoDB connected successfully using in-memory fallback');
+};
+
+connectDatabase().catch((err) => console.error('MongoDB connection error:', err));
+
+process.on('SIGINT', async () => {
+  await mongoose.disconnect();
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
+  process.exit(0);
+});
 
 // Import routes
 const authRoutes = require('./routes/auth');
