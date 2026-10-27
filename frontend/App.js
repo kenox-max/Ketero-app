@@ -20,6 +20,7 @@ import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import VideoCallModal from './components/VideoCallModal';
+import WebInstallPrompt from './components/WebInstallPrompt';
 
 // Configurable API base url imported from config/api.js
 
@@ -471,6 +472,7 @@ export default function App() {
         sdpOffer={activeCallData?.sdpOffer}
         onClose={() => setActiveCallData(null)}
       />
+      <WebInstallPrompt />
     </SafeAreaView>
     </GestureHandlerRootView>
     </ErrorBoundary>

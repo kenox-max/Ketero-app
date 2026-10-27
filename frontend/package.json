@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "build": "npx expo export -p web",
+    "build": "npx expo export -p web && node scripts/prepare-web-install.js",
     "android": "expo run:android",
     "android:preview": "eas build -p android --profile preview",
     "android:prod": "eas build -p android --profile production",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:web": "npx expo export -p web",
-    "export:web": "npx expo export -p web"
+    "build:web": "npx expo export -p web && node scripts/prepare-web-install.js",
+    "export:web": "npx expo export -p web && node scripts/prepare-web-install.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.1",
