@@ -170,7 +170,7 @@ export default function App() {
         setToken(data.token);
         const userObj = data.user || data;
         setUser(userObj);
-        setCurrentScreen('DASHBOARD');
+        setCurrentScreen(userObj.role === 'admin' ? 'ADMIN' : 'DASHBOARD');
       } else {
         const errorMsg = data.error || 'Failed to Login';
         if (Platform.OS === 'web') alert(errorMsg); else Alert.alert('Login Error', errorMsg);
