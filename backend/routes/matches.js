@@ -18,13 +18,16 @@ router.get('/discovery', protect, async (req, res) => {
 
     // Build query
     const query = {
-      _id: { $nin: excludedUserIds }
+      _id: { $nin: excludedUserIds },
+      role: { $ne: 'admin' },
     };
 
     // Filter by religion if user specifies interest (or matching same religion is highly valued in Ethiopia)
     // For prototype, we'll fetch all matching profiles but sort or score them.
     // Let's filter to match religion optionally, or just list everyone in same/similar locations first.
-    let potentialMatches = await User.find(query).select('-password');
+    let potentialMatches = await User.find(query).select(
+      'name age gender location religion languages hobbies profilePhoto verifiedStatus isVerified badgeType isPremium'
+    );
 
     // Simple sorting: put profiles with the same religion or same location first
     potentialMatches.sort((a, b) => {

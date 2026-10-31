@@ -21,7 +21,8 @@ router.get('/analytics', async (req, res) => {
     const maleCount = await User.countDocuments({ gender: 'male' });
     const femaleCount = await User.countDocuments({ gender: 'female' });
     
-    // Active Today (users created or active today)
+    // The current User model has no last-active timestamp, so report registrations
+    // today rather than labeling new accounts as active users.
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const activeTodayCount = await User.countDocuments({ createdAt: { $gte: today } });
@@ -37,7 +38,7 @@ router.get('/analytics', async (req, res) => {
 
     res.json({
       totalUsers,
-      activeToday: activeTodayCount || Math.min(totalUsers, 1),
+      newUsersToday: activeTodayCount,
       premiumSubscribers,
       genderDemographics: {
         male: maleCount,

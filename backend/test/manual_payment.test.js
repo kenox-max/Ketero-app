@@ -12,16 +12,11 @@ async function runTests() {
   let server;
 
   try {
-    let targetUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-
-    try {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
-      mongoServer = await MongoMemoryServer.create();
-      targetUri = mongoServer.getUri();
-      console.log('[PASS] Started In-Memory MongoDB Server');
-    } catch (e) {
-      console.log('[INFO] Using external MongoDB URI:', targetUri);
-    }
+    // Never let an automated test write to the configured application database.
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    mongoServer = await MongoMemoryServer.create();
+    const targetUri = mongoServer.getUri();
+    console.log('[PASS] Started isolated In-Memory MongoDB Server for testing');
 
     await mongoose.connect(targetUri, {
       serverSelectionTimeoutMS: 5000,
@@ -30,6 +25,7 @@ async function runTests() {
 
     const User = require('../models/User');
     const PaymentRequest = require('../models/PaymentRequest');
+    const Transaction = require('../models/Transaction');
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('password123', salt);
@@ -123,6 +119,33 @@ async function runTests() {
     });
     const adminLoginData = await adminLoginRes.json();
     const adminToken = adminLoginData.token;
+
+    const simulatedWebhookRes = await fetchWithRetry(`${baseUrl}/api/payments/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId: 'forged-demo-txn', status: 'success', userId: regUser._id }),
+    });
+    if (simulatedWebhookRes.status !== 410) throw new Error('Simulated generic webhook must be disabled');
+
+    const unsignedChapaRes = await fetchWithRetry(`${baseUrl}/api/payments/chapa/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tx_ref: 'forged-demo-txn', status: 'success' }),
+    });
+    if (unsignedChapaRes.status !== 401) throw new Error('Unsigned Chapa webhook must be rejected');
+
+    const adminOwnedTxn = await Transaction.create({
+      userId: adminUser._id,
+      transactionId: 'ADMIN_OWNED_VERIFY_TEST',
+      amount: 150,
+      provider: 'Chapa',
+      status: 'pending',
+    });
+    const otherUserTxnVerifyRes = await fetchWithRetry(`${baseUrl}/api/payments/verify/${adminOwnedTxn.transactionId}`, {
+      headers: { Authorization: `Bearer ${userToken}` },
+    });
+    if (otherUserTxnVerifyRes.status !== 404) throw new Error('Users must not verify another account transaction');
+    console.log('[PASS] Generic payment claims and unsigned webhooks are rejected; transaction ownership is enforced');
 
     console.log('[PASS] Logged in Regular User & Admin successfully');
 

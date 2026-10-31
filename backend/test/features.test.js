@@ -1,5 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+process.env.NODE_ENV = 'test';
+['BREVO_USER', 'BREVO_PASS', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_USER', 'EMAIL_PASS'].forEach((key) => delete process.env[key]);
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -12,17 +14,11 @@ async function runTests() {
   let server;
 
   try {
-    let targetUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-
-    // Try MongoDB Memory Server if available or as fallback
-    try {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
-      mongoServer = await MongoMemoryServer.create();
-      targetUri = mongoServer.getUri();
-      console.log('[PASS] Started In-Memory MongoDB Server for fast isolated testing');
-    } catch (e) {
-      console.log('[INFO] Using external MongoDB URI:', targetUri);
-    }
+    // Never let an automated test write to the configured application database.
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    mongoServer = await MongoMemoryServer.create();
+    const targetUri = mongoServer.getUri();
+    console.log('[PASS] Started isolated In-Memory MongoDB Server for testing');
 
     await mongoose.connect(targetUri, {
       serverSelectionTimeoutMS: 5000,
@@ -88,6 +84,8 @@ async function runTests() {
     app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
     app.use('/api/auth', require('../routes/auth'));
+    app.use('/api/messages', require('../routes/messages'));
+    app.use('/api/matches', require('../routes/matches'));
     app.use('/api/admin', require('../routes/adminRoutes'));
     app.use('/api/reports', require('../routes/reportRoutes'));
     app.use('/api/stories', require('../routes/storyRoutes'));
@@ -113,6 +111,19 @@ async function runTests() {
     };
 
     // Test 1: Login Regular User
+    const missingCredentialsRes = await fetchWithRetry(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (missingCredentialsRes.status !== 400) throw new Error('Missing login credentials should return 400');
+    const invalidCredentialsRes = await fetchWithRetry(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '0999000099', password: 'incorrect' }),
+    });
+    if (invalidCredentialsRes.status !== 401) throw new Error('Invalid login credentials should return 401');
+
     const regLoginRes = await fetchWithRetry(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,6 +135,21 @@ async function runTests() {
     }
     let userToken = regLoginData.token;
     console.log('[PASS] Regular User Login Token retrieved');
+
+    const unmatchedHistoryRes = await fetchWithRetry(`${baseUrl}/api/messages/${encodeURIComponent(adminUser._id)}`, {
+      headers: { Authorization: `Bearer ${userToken}` },
+    });
+    if (unmatchedHistoryRes.status !== 403) {
+      throw new Error(`Unmatched message history was not blocked. Status: ${unmatchedHistoryRes.status}`);
+    }
+    regUser.matches.push(adminUser._id);
+    adminUser.matches.push(regUser._id);
+    await Promise.all([regUser.save(), adminUser.save()]);
+    const matchedHistoryRes = await fetchWithRetry(`${baseUrl}/api/messages/${encodeURIComponent(adminUser._id)}`, {
+      headers: { Authorization: `Bearer ${userToken}` },
+    });
+    if (!matchedHistoryRes.ok) throw new Error('Matched message history should remain available');
+    console.log('[PASS] Message history requires a reciprocal match');
 
     // Test 2: Login Admin User
     const adminLoginRes = await fetchWithRetry(`${baseUrl}/api/auth/login`, {
@@ -137,6 +163,18 @@ async function runTests() {
     }
     let adminToken = adminLoginData.token;
     console.log('[PASS] Admin User Login & Role verified');
+
+    const discoveryRes = await fetchWithRetry(`${baseUrl}/api/matches/discovery`, {
+      headers: { Authorization: `Bearer ${userToken}` },
+    });
+    const discovery = await discoveryRes.json();
+    if (!discoveryRes.ok || discovery.some((candidate) => String(candidate._id) === String(adminUser._id))) {
+      throw new Error('Admin accounts must not appear in discovery');
+    }
+    if (discovery.some((candidate) => candidate.password !== undefined || candidate.email !== undefined || candidate.phone !== undefined)) {
+      throw new Error('Discovery returned private account fields');
+    }
+    console.log('[PASS] Discovery excludes administrators and returns only approved public fields');
 
     // Test 3: Admin RBAC Middleware (Access Control)
     const forbiddenRes = await fetchWithRetry(`${baseUrl}/api/admin/analytics`, {

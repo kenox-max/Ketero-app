@@ -5,10 +5,13 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const sendOTPCode = require('../utils/sendEmail');
+const rateLimit = require('../middleware/rateLimit');
+const { randomInt } = require('crypto');
 
 // Helper to generate JWT
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'ketero_secret_key', {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not configured');
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });
 };
@@ -104,7 +107,7 @@ router.post('/register', async (req, res) => {
 
 // @route   POST /api/auth/login
 // @desc    Authenticate user and get token
-router.post('/login', async (req, res) => {
+router.post('/login', rateLimit({ max: 10, message: 'Too many login attempts. Try again later.' }), async (req, res) => {
   try {
     const { phone, password } = req.body;
 
@@ -212,14 +215,14 @@ const tempOtpStore = new Map();
 
 // @route   POST /api/auth/send-otp
 // @desc    Send 6-digit OTP code via Gmail SMTP Nodemailer
-router.post('/send-otp', async (req, res) => {
+router.post('/send-otp', rateLimit({ max: 5, message: 'Too many verification requests. Try again later.' }), async (req, res) => {
   try {
     const { phone, email, method } = req.body;
     if (!phone && !email) {
       return res.status(400).json({ error: 'Phone number or email is required' });
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = randomInt(100000, 1000000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     const targetKey = phone || email;
@@ -254,28 +257,24 @@ router.post('/send-otp', async (req, res) => {
         console.error('[SMTP ERROR] Failed to deliver email:', mailErr);
         mailErrorMessage = mailErr.message || 'SMTP delivery failed';
       }
-    } else {
+    } else if (process.env.NODE_ENV !== 'production') {
       console.log(`[EXTERNAL OTP TRANSMITTER (SIMULATION)] 6-digit OTP code [${otpCode}] generated for ${targetKey}`);
     }
 
     // If SMTP is configured but sending failed, return error to client
     if (hasSmtpConfig && !emailSent) {
-      return res.status(500).json({
-        error: `Failed to send email (${mailErrorMessage}). Please check your SMTP settings in backend/.env`,
-        devOtp: otpCode,
-      });
+      console.error('OTP delivery failed:', mailErrorMessage);
+      return res.status(500).json({ error: 'Unable to send verification code' });
     }
 
     // Response logic
     const responsePayload = {
       success: true,
-      message: emailSent
-        ? `Verification code sent to ${recipientEmail}`
-        : `[Simulation Mode] Verification code generated for ${targetKey}. (SMTP credentials not configured in backend/.env)`,
+      message: 'If the account can receive a verification code, instructions have been sent.',
     };
 
     // Attach devOtp if in dev mode or email not sent so user is never blocked
-    if (!emailSent || process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       responsePayload.devOtp = otpCode;
     }
 
@@ -288,7 +287,7 @@ router.post('/send-otp', async (req, res) => {
 
 // @route   POST /api/auth/verify-otp
 // @desc    Verify 6-digit OTP code
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', rateLimit({ max: 10, message: 'Too many verification attempts. Try again later.' }), async (req, res) => {
   try {
     const { phone, email, otpCode } = req.body;
     if (!otpCode) {
@@ -329,7 +328,7 @@ router.post('/verify-otp', async (req, res) => {
 
 // @route   POST /api/auth/forgot-password
 // @desc    Self-Service Password Reset via Email Verification (Generates 6-digit 15-min token)
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', rateLimit({ max: 5, message: 'Too many recovery requests. Try again later.' }), async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -338,11 +337,11 @@ router.post('/forgot-password', async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
-      return res.status(404).json({ error: 'No account found with this email address' });
+      return res.json({ success: true, message: 'If an account exists for that email, reset instructions will be sent.' });
     }
 
     // Generate 6-digit reset token valid for 15 minutes
-    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetToken = randomInt(100000, 1000000).toString();
     const resetExpires = new Date(Date.now() + 15 * 60 * 1000);
 
     user.resetPasswordToken = resetToken;
@@ -367,12 +366,10 @@ router.post('/forgot-password', async (req, res) => {
 
     const responsePayload = {
       success: true,
-      message: emailSent
-        ? `Password reset code sent to ${user.email}`
-        : `Password reset token generated for ${user.email}`,
+      message: 'If an account exists for that email, reset instructions will be sent.',
     };
 
-    if (!emailSent || process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       responsePayload.devOtp = resetToken;
     }
 
@@ -385,7 +382,7 @@ router.post('/forgot-password', async (req, res) => {
 
 // @route   POST /api/auth/reset-password
 // @desc    Validate token and hash new password using bcrypt
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', rateLimit({ max: 10, message: 'Too many password reset attempts. Try again later.' }), async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
 
@@ -393,13 +390,13 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Please provide email, verification token, and new password' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long' });
     }
 
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
-      return res.status(404).json({ error: 'User account not found' });
+      return res.status(400).json({ error: 'Invalid or expired password reset token' });
     }
 
     if (

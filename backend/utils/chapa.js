@@ -51,21 +51,19 @@ async function initializeChapaPayment({
     const resData = await response.json();
     const isSuccess = response.ok && resData.status === 'success';
 
+    if (!isSuccess || !resData.data?.checkout_url) {
+      throw new Error('Chapa did not return a valid checkout session');
+    }
+
     return {
       status: isSuccess ? 'success' : 'failed',
       rawResponse: resData,
-      checkout_url: resData.data?.checkout_url || `https://checkout.chapa.co/checkout/payment/${payload.tx_ref}`,
+      checkout_url: resData.data.checkout_url,
       tx_ref: payload.tx_ref,
     };
   } catch (error) {
     console.error('Error calling Chapa initialize API:', error);
-    // Return fallback structure for mock/offline testing
-    return {
-      status: 'success',
-      checkout_url: `https://checkout.chapa.co/checkout/payment/${payload.tx_ref}`,
-      tx_ref: payload.tx_ref,
-      isMock: true,
-    };
+    throw new Error('Unable to reach Chapa to initialize payment');
   }
 }
 
@@ -113,9 +111,12 @@ function verifyChapaWebhookSignature(rawBody, signature, secret) {
   if (!webhookSecret || !signature) return false;
 
   try {
-    const bodyStr = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
-    const hash = crypto.createHmac('sha256', webhookSecret).update(bodyStr).digest('hex');
-    return hash === signature;
+    const body = Buffer.isBuffer(rawBody)
+      ? rawBody
+      : Buffer.from(typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody));
+    const hash = crypto.createHmac('sha256', webhookSecret).update(body).digest();
+    const supplied = Buffer.from(String(signature).trim(), 'hex');
+    return supplied.length === hash.length && crypto.timingSafeEqual(hash, supplied);
   } catch (error) {
     console.error('Chapa webhook signature verification error:', error);
     return false;

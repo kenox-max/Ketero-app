@@ -13,7 +13,12 @@ const { initializeChapaPayment, verifyChapaPayment, verifyChapaWebhookSignature 
 // @access  Private
 router.post('/checkout', protect, async (req, res) => {
   try {
-    const { amount = 150, provider = 'Telebirr', phoneNumber, returnUrl } = req.body;
+    const { provider = 'Telebirr', phoneNumber, returnUrl } = req.body;
+    const amount = Number(process.env.PREMIUM_PRICE_ETB || 150);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(503).json({ error: 'Premium checkout pricing is not configured correctly' });
+    }
 
     if (!provider || !['Telebirr', 'Chapa'].includes(provider)) {
       return res.status(400).json({ error: 'Valid payment provider (Telebirr or Chapa) is required' });
@@ -93,57 +98,9 @@ router.post('/checkout', protect, async (req, res) => {
 });
 
 // @route   POST /api/payments/webhook
-// @desc    Generic/Simulated webhook endpoint to upgrade user isPremium status
-// @access  Public
-router.post('/webhook', async (req, res) => {
-  try {
-    const { transactionId, userId, status, provider } = req.body;
-
-    if (status === 'success') {
-      let user = null;
-
-      if (userId) {
-        user = await User.findById(userId);
-      }
-
-      if (!user && transactionId) {
-        const txn = await Transaction.findOne({ transactionId });
-        if (txn) {
-          user = await User.findById(txn.userId);
-        }
-      }
-
-      if (!user) {
-        return res.status(404).json({ error: 'User not found for payment upgrade' });
-      }
-
-      user.isPremium = true;
-      user.badgeType = 'premium_verified';
-      user.isVerified = true;
-      user.verifiedStatus = true;
-      await user.save();
-
-      if (transactionId) {
-        await Transaction.findOneAndUpdate(
-          { transactionId },
-          { status: 'success', updatedAt: new Date() }
-        );
-      }
-
-      console.log(`Payment SUCCESS: User ${user.name} (${user._id}) upgraded to Premium via ${provider || 'Webhook'}. Txn: ${transactionId}`);
-
-      return res.json({
-        success: true,
-        message: `Subscription activated successfully for ${user.name}`,
-        isPremium: user.isPremium,
-      });
-    }
-
-    res.status(400).json({ success: false, message: 'Transaction status was not successful' });
-  } catch (error) {
-    console.error('Payment Webhook Error:', error);
-    res.status(500).json({ error: 'Server error handling payment webhook' });
-  }
+// Retired demo endpoint. Client-submitted success claims must never grant entitlements.
+router.post('/webhook', (req, res) => {
+  res.status(410).json({ error: 'This simulated payment endpoint is disabled' });
 });
 
 // @route   POST /api/payments/chapa/webhook
@@ -151,34 +108,36 @@ router.post('/webhook', async (req, res) => {
 // @access  Public
 router.post('/chapa/webhook', async (req, res) => {
   try {
-    const signature = req.headers['x-chapa-signature'] || req.headers['chapa-signature'];
+    const signatures = [req.headers['x-chapa-signature'], req.headers['chapa-signature']].filter(Boolean);
     const webhookSecret = process.env.CHAPA_WEBHOOK_SECRET;
 
-    // Verify signature if secret and header are configured
-    if (webhookSecret && signature) {
-      const isValid = verifyChapaWebhookSignature(req.body, signature, webhookSecret);
-      if (!isValid) {
-        console.warn('Chapa Webhook signature verification failed');
-        return res.status(401).json({ error: 'Invalid webhook signature' });
-      }
+    if (!webhookSecret || signatures.length === 0 ||
+        !signatures.some((signature) => verifyChapaWebhookSignature(req.rawBody, signature, webhookSecret))) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
     }
 
     const { tx_ref, status, event } = req.body;
     const isSuccess = status === 'success' || event === 'charge.success';
 
     if (tx_ref && isSuccess) {
-      const txn = await Transaction.findOne({ transactionId: tx_ref });
-      if (txn) {
-        txn.status = 'success';
-        await txn.save();
+      const txn = await Transaction.findOne({ transactionId: tx_ref, provider: 'Chapa' });
+      if (!txn) return res.status(404).json({ error: 'Transaction not found' });
+      const verification = await verifyChapaPayment(tx_ref);
+      const verified = verification.data?.data || {};
+      const amountMatches = Number(verified.amount) === Number(txn.amount);
+      const referenceMatches = verified.tx_ref === txn.transactionId;
+      const currencyMatches = String(verified.currency || '').toUpperCase() === String(txn.currency || 'ETB').toUpperCase();
 
-        const user = await User.findById(txn.userId);
-        if (user) {
-          user.isPremium = true;
-          await user.save();
-          console.log(`Chapa Webhook: Upgraded user ${user.name} to Premium`);
-        }
+      if (!verification.success || verified.status !== 'success' || !amountMatches || !referenceMatches || !currencyMatches) {
+        return res.status(400).json({ error: 'Provider transaction verification did not match the expected payment' });
       }
+
+      const updated = await Transaction.findOneAndUpdate(
+        { _id: txn._id, status: 'pending' },
+        { $set: { status: 'success', updatedAt: new Date() } },
+        { new: true }
+      );
+      if (updated) await User.findByIdAndUpdate(updated.userId, { $set: { isPremium: true, badgeType: 'premium_verified' } });
     }
 
     res.json({ success: true, message: 'Chapa webhook processed' });
@@ -198,29 +157,30 @@ router.post('/telebirr/webhook', async (req, res) => {
 
     const publicKey = process.env.TELEBIRR_PUBLIC_KEY;
 
-    if (sign && publicKey) {
-      const dataToVerify = buildSortedParamString(bodyData);
-      const isValid = verifySignature(dataToVerify, sign, publicKey);
-      if (!isValid) {
-        console.warn('Telebirr RSA signature verification failed for notify');
-      }
+    if (!publicKey || !sign || !outTradeNo) {
+      return res.status(401).json({ code: 1, message: 'Signature configuration or fields missing' });
+    }
+    const dataToVerify = buildSortedParamString(bodyData);
+    if (!verifySignature(dataToVerify, sign, publicKey)) {
+      return res.status(401).json({ code: 1, message: 'Invalid signature' });
     }
 
     // Telebirr considers '0' or 'SUCCESS' as successful payment
     const isSuccess = tradeStatus === '0' || tradeStatus === 'SUCCESS' || bodyData.status === 'success';
 
     if (outTradeNo) {
-      const txn = await Transaction.findOne({ transactionId: outTradeNo });
+      const txn = await Transaction.findOne({ transactionId: outTradeNo, provider: 'Telebirr' });
       if (txn && isSuccess) {
-        txn.status = 'success';
-        await txn.save();
-
-        const user = await User.findById(txn.userId);
-        if (user) {
-          user.isPremium = true;
-          await user.save();
-          console.log(`Telebirr Webhook: Upgraded user ${user.name} to Premium`);
+        const paidAmount = bodyData.totalAmount ?? bodyData.amount ?? bodyData.transAmount;
+        if (!Number.isFinite(Number(paidAmount)) || Number(paidAmount) !== Number(txn.amount)) {
+          return res.status(400).json({ code: 1, message: 'Payment amount mismatch' });
         }
+        const updated = await Transaction.findOneAndUpdate(
+          { _id: txn._id, status: 'pending' },
+          { $set: { status: 'success', updatedAt: new Date() } },
+          { new: true }
+        );
+        if (updated) await User.findByIdAndUpdate(updated.userId, { $set: { isPremium: true, badgeType: 'premium_verified' } });
       }
     }
 
@@ -238,7 +198,7 @@ router.post('/telebirr/webhook', async (req, res) => {
 router.get('/verify/:transactionId', protect, async (req, res) => {
   try {
     const { transactionId } = req.params;
-    const txn = await Transaction.findOne({ transactionId });
+    const txn = await Transaction.findOne({ transactionId, userId: req.user._id });
 
     if (!txn) {
       return res.status(404).json({ error: 'Transaction not found' });
@@ -247,11 +207,18 @@ router.get('/verify/:transactionId', protect, async (req, res) => {
     // If transaction is pending and is Chapa, double check with Chapa API
     if (txn.status === 'pending' && txn.provider === 'Chapa') {
       const verification = await verifyChapaPayment(transactionId);
-      if (verification.success) {
+      const verified = verification.data?.data || {};
+      const validVerification = verification.success && verified.status === 'success' &&
+        verified.tx_ref === txn.transactionId && Number(verified.amount) === Number(txn.amount) &&
+        String(verified.currency || '').toUpperCase() === String(txn.currency || 'ETB').toUpperCase();
+      if (validVerification) {
+        const updated = await Transaction.findOneAndUpdate(
+          { _id: txn._id, status: 'pending' },
+          { $set: { status: 'success', updatedAt: new Date() } },
+          { new: true }
+        );
+        if (updated) await User.findByIdAndUpdate(updated.userId, { $set: { isPremium: true, badgeType: 'premium_verified' } });
         txn.status = 'success';
-        await txn.save();
-
-        await User.findByIdAndUpdate(req.user._id, { isPremium: true });
         req.user.isPremium = true;
       }
     }
@@ -308,6 +275,14 @@ router.post('/manual-submit', protect, upload.single('receiptImage'), async (req
     if (!transactionId || !transactionId.trim()) {
       return res.status(400).json({ error: 'Telebirr Transaction ID is required' });
     }
+    const normalizedTransactionId = transactionId.trim();
+    const amountValue = Number(amount);
+    if (!Number.isFinite(amountValue) || amountValue <= 0 || !['monthly', 'yearly'].includes(planType)) {
+      return res.status(400).json({ error: 'Valid payment amount and plan are required' });
+    }
+    if (await PaymentRequest.exists({ transactionId: normalizedTransactionId })) {
+      return res.status(409).json({ error: 'This transaction reference has already been submitted' });
+    }
 
     let receiptImageUrl;
     if (req.file) {
@@ -333,9 +308,9 @@ router.post('/manual-submit', protect, upload.single('receiptImage'), async (req
 
     const paymentRequest = await PaymentRequest.create({
       userId: req.user._id,
-      transactionId: transactionId.trim(),
+      transactionId: normalizedTransactionId,
       receiptImageUrl,
-      amount: parseFloat(amount),
+      amount: amountValue,
       planType,
       status: 'pending',
     });

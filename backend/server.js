@@ -22,13 +22,16 @@ const allowedOrigins = [
   'https://ketero-app.vercel.app',
   'https://ketero.vercel.app',
   process.env.FRONTEND_URL,
+  ...(process.env.CORS_ORIGINS || '').split(',').map((origin) => origin.trim()),
 ].filter(Boolean);
 
+app.set('trust proxy', 1);
+
 const corsOriginHandler = (origin, callback) => {
-  if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+  if (!origin || allowedOrigins.includes(origin)) {
     callback(null, true);
   } else {
-    callback(null, true); // Allow mobile APK requests where origin header may be undefined
+    callback(new Error('Origin is not allowed by CORS'));
   }
 };
 
@@ -49,22 +52,28 @@ app.use(cors({
   origin: corsOriginHandler,
   credentials: true
 }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// The image picker can send a base64 image as JSON. Keep that route bounded
+// separately while retaining a small default API payload limit.
+app.use('/api/users/profile-picture', express.json({ limit: '14mb' }));
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, res, buffer) => { req.rawBody = Buffer.from(buffer); },
+}));
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Connect to MongoDB. If the configured URI is missing or invalid, fall back to an in-memory MongoDB instance.
+// Use the memory database only for local development; never start production against ephemeral data.
 const connectDatabase = async () => {
   const configuredUri = process.env.MONGO_URI || process.env.MONGODB_URI;
 
   if (configuredUri) {
-    try {
-      await mongoose.connect(configuredUri);
-      console.log('MongoDB connected successfully using configured URI');
-      return;
-    } catch (error) {
-      console.warn('Configured MongoDB URI failed, falling back to in-memory MongoDB:', error.message);
-    }
+    await mongoose.connect(configuredUri);
+    console.log('MongoDB connected successfully using configured URI');
+    return;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('MONGO_URI (or MONGODB_URI) is required in production');
   }
 
   mongoServer = await MongoMemoryServer.create();
@@ -73,8 +82,6 @@ const connectDatabase = async () => {
   await mongoose.connect(memoryUri);
   console.log('MongoDB connected successfully using in-memory fallback');
 };
-
-connectDatabase().catch((err) => console.error('MongoDB connection error:', err));
 
 process.on('SIGINT', async () => {
   await mongoose.disconnect();
@@ -119,7 +126,10 @@ io.use(async (socket, next) => {
       return next(new Error('Authentication error: Token missing'));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ketero_secret_key');
+    if (!process.env.JWT_SECRET) {
+      return next(new Error('Authentication is not configured'));
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
@@ -313,6 +323,17 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Ketero server running on port ${PORT}`);
+const startServer = async () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is required before starting the API');
+  }
+  await connectDatabase();
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Ketero server running on port ${PORT}`);
+  });
+};
+
+startServer().catch((err) => {
+  console.error('Server startup failed:', err.message);
+  process.exit(1);
 });

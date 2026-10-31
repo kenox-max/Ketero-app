@@ -10,7 +10,10 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
 
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ketero_secret_key');
+      if (!process.env.JWT_SECRET) {
+        return res.status(503).json({ error: 'Authentication is not configured' });
+      }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // Get user from the token and attach to request
       req.user = await User.findById(decoded.id).select('-password');
@@ -20,7 +23,6 @@ const protect = async (req, res, next) => {
 
       next();
     } catch (error) {
-      console.error('Auth Error:', error);
       res.status(401).json({ error: 'Not authorized, token failed' });
     }
   }

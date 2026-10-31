@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   SafeAreaView,
+  Linking,
 } from 'react-native';
 import UpgradeModal from '../components/UpgradeModal';
 
@@ -45,7 +46,7 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
 
       if (response.ok && data.success) {
         setTransactionId(data.transactionId);
-        // Open the Mock payment processing modal
+        if (data.paymentUrl) await Linking.openURL(data.paymentUrl);
         setSimulationModal(true);
       } else {
         Alert.alert('Checkout Error', data.error || 'Failed to initiate checkout.');
@@ -64,33 +65,23 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
     setSimulationModal(false);
 
     try {
-      // Extract userId from token or use decoded state
-      // For prototype checkout, we notify the webhook directly
-      const response = await fetch(`${apiBaseUrl}/api/payments/webhook`, {
-        method: 'POST',
+      const response = await fetch(`${apiBaseUrl}/api/payments/verify/${encodeURIComponent(transactionId)}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          transactionId,
-          status: 'success',
-          provider,
-          // The backend webhook fetches the user from the payload
-          // For simplicity, we pass user details so webhook upgrades the right user
-          userId: paywallData?.userId || user?._id, 
-        }),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok && data.success && data.status === 'success' && data.isPremium) {
         Alert.alert(
           'ቀጠሮ Premium Unlocked!',
           'Congratulations! You have upgraded to Ketero Premium. Video & Voice calls are now unlocked.',
           [{ text: 'Great!', onPress: onPaymentSuccess }]
         );
       } else {
-        Alert.alert('Verification Failed', 'Unable to verify payment. Please try again.');
+        Alert.alert('Payment Pending', 'The provider has not confirmed this payment yet. Check again after completing payment.');
       }
     } catch (err) {
       console.error('Webhook verification failed:', err);
@@ -200,19 +191,17 @@ export default function PaymentScreen({ token, apiBaseUrl, paywallData, onPaymen
         }}
       />
 
-      {/* Mock payment portal Modal simulation */}
+      {/* Provider status check */}
       <Modal visible={simulationModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Mock {provider} Portal</Text>
+            <Text style={styles.modalTitle}>{provider} payment status</Text>
             <Text style={styles.modalDesc}>
-              {provider === 'Telebirr'
-                ? `Confirm payment prompt sent to your device for 150 ETB (Txn: ${transactionId}).`
-                : `Simulate completing card verification on Chapa checkout for 150 ETB.`}
+              `Complete the payment with ${provider}. Ketero unlocks Premium only after the provider confirms transaction ${transactionId}.`}
             </Text>
 
             <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmMockPayment}>
-              <Text style={styles.modalConfirmBtnText}>Simulate Successful Payment</Text>
+              <Text style={styles.modalConfirmBtnText}>Check Payment Status</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
