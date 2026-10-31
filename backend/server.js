@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const User = require('./models/User');
 const Message = require('./models/Message');
+const { createCorsOriginHandler } = require('./middleware/corsOrigin');
 
 // Load environment variables
 require('dotenv').config();
@@ -27,13 +28,7 @@ const allowedOrigins = [
 
 app.set('trust proxy', 1);
 
-const corsOriginHandler = (origin, callback) => {
-  if (!origin || allowedOrigins.includes(origin)) {
-    callback(null, true);
-  } else {
-    callback(new Error('Origin is not allowed by CORS'));
-  }
-};
+const corsOriginHandler = createCorsOriginHandler(allowedOrigins);
 
 const path = require('path');
 
